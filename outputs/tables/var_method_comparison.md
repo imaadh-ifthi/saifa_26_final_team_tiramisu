@@ -1,0 +1,3 @@
+# VaR Method Comparison
+
+Forecasts use information available before each forecast date. Historical simulation preserves the observed empirical tail but adapts slowly. EWMA parametric VaR reacts to volatility changes but assumes normal standardized returns and zero mean. Bootstrap Monte Carlo resamples recent observed returns; it cannot generate losses beyond its sample. The method with the highest VaR is most conservative for the observed sample, while EWMA generally reacts fastest to changing volatility. For a conservative client, compare methods and supplement them with Expected Shortfall and stress analysis. VaR is not a guarantee of maximum loss.

@@ -1,0 +1,36 @@
+project:
+  name: "Quant Edge 1.0 - Serendib Endowment"
+  portfolio_value_usd: 10000000
+  seed: 42
+data:
+  tickers: [SPY, EFA, EEM, AGG, GLD, XLE, XLK]
+  start_date: "2007-01-01"
+  fred_risk_free_series: DGS3MO
+  cache_raw_data: true
+estimation:
+  core_start_date: "2010-01-01"
+  trading_days_per_year: 252
+  expected_return_shrinkage_to_prior: 0.5
+  covariance_shrinkage: 0.25
+portfolio:
+  target_return_annual: 0.065
+  target_return_grid: [0.050, 0.055, 0.060, 0.065, 0.070, 0.075]
+  max_equity_exposure: 0.60
+  min_defensive_exposure: 0.35
+  max_eem: 0.10
+  max_xlk: 0.15
+  max_xle: 0.10
+  gld_bounds: [0.05, 0.15]
+  max_single_position: 0.45
+benchmarks:
+  market_proxy_weights: {SPY: 0.70, EFA: 0.20, EEM: 0.10}
+  policy_benchmark_weights: {SPY: 0.35, EFA: 0.10, EEM: 0.05, AGG: 0.40, GLD: 0.10, XLE: 0.00, XLK: 0.00}
+var:
+  confidence_levels: [0.90, 0.95, 0.99]
+  historical_window: 252
+  ewma_lambda: 0.94
+  monte_carlo_simulations: 10000
+  monte_carlo_window: 252
+outputs:
+  save_parquet: true
+  save_csv: true

@@ -1,0 +1,42 @@
+{
+  "portfolio_value_usd": 10000000,
+  "target_return_annual": 0.065,
+  "weights": {
+    "SPY": 0.23174077928906553,
+    "EFA": 0.11838737912800808,
+    "EEM": 0.013300418592916391,
+    "AGG": 0.44999999999999984,
+    "GLD": 0.15,
+    "XLE": 0.02482508744229004,
+    "XLK": 0.011746335547720015
+  },
+  "expected_return_annual": 0.08022349922807284,
+  "volatility_annual": 0.07573568963647367,
+  "constraints": {
+    "target_return_annual": 0.065,
+    "target_return_grid": [
+      0.05,
+      0.055,
+      0.06,
+      0.065,
+      0.07,
+      0.075
+    ],
+    "max_equity_exposure": 0.6,
+    "min_defensive_exposure": 0.35,
+    "max_eem": 0.1,
+    "max_xlk": 0.15,
+    "max_xle": 0.1,
+    "gld_bounds": [
+      0.05,
+      0.15
+    ],
+    "max_single_position": 0.45
+  },
+  "estimation_window": {
+    "start": "2010-01-04",
+    "end": "2026-10-22",
+    "observations": 4227
+  },
+  "notes": "Expected returns blend historical estimates and CAPM; covariance uses diagonal shrinkage."
+}
