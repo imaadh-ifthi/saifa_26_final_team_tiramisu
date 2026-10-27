@@ -2,16 +2,16 @@
   "portfolio_value_usd": 10000000,
   "target_return_annual": 0.065,
   "weights": {
-    "SPY": 0.23174078548670018,
-    "EFA": 0.11838737709252461,
-    "EEM": 0.013300417436364715,
-    "AGG": 0.45,
+    "SPY": 0.23174077928906553,
+    "EFA": 0.11838737912800808,
+    "EEM": 0.013300418592916391,
+    "AGG": 0.44999999999999984,
     "GLD": 0.15,
-    "XLE": 0.024825087025660126,
-    "XLK": 0.011746332958750171
+    "XLE": 0.02482508744229004,
+    "XLK": 0.011746335547720015
   },
-  "expected_return_annual": 0.08013685690428606,
-  "volatility_annual": 0.07573568963647326,
+  "expected_return_annual": 0.08022349922807284,
+  "volatility_annual": 0.07573568963647367,
   "constraints": {
     "target_return_annual": 0.065,
     "target_return_grid": [

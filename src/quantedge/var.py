@@ -39,11 +39,18 @@ def make_var_forecast_table(log_returns: pd.Series, var_series: pd.Series, metho
 
 
 def build_var_suite(log_returns: pd.Series, config: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Current-allocation historical replay, now with ES and common model warmups.
-
-    Formal validation uses analytics.run_analytical_layers and training-only weights.
-    """
-    from .risk import build_risk_forecasts, summarize_risk
-    forecasts, _ = build_risk_forecasts(log_returns, config, include_evt=False)
-    forecasts["evaluation_basis"] = "retrospective_current_allocation"
-    return forecasts, summarize_risk(forecasts)
+    cfg = config["var"]
+    tables = []
+    for confidence in cfg["confidence_levels"]:
+        forecast_sets = {
+            "historical": rolling_historical_var(log_returns, confidence, cfg["historical_window"]),
+            "parametric_ewma": rolling_parametric_var(log_returns, confidence, cfg["ewma_lambda"]),
+            "monte_carlo_bootstrap": rolling_bootstrap_monte_carlo_var(log_returns, confidence, cfg["monte_carlo_window"], cfg["monte_carlo_simulations"], config["project"]["seed"]),
+        }
+        tables.extend(make_var_forecast_table(log_returns, series, method, confidence, config["project"]["portfolio_value_usd"]) for method, series in forecast_sets.items())
+    forecasts = pd.concat(tables, ignore_index=True) if tables else pd.DataFrame()
+    summary = []
+    for (method, confidence), frame in forecasts.groupby(["method", "confidence"], sort=True):
+        latest = frame.sort_values("date").iloc[-1]
+        summary.append({"method": method, "confidence": confidence, "latest_date": latest.date, "latest_var_pct": latest.var_simple_pct, "latest_var_usd": latest.var_usd, "average_var_pct": frame.var_simple_pct.mean(), "number_of_exceptions": int(frame.exception.sum()), "observations": len(frame)})
+    return forecasts, pd.DataFrame(summary)

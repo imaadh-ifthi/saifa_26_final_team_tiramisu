@@ -8,4 +8,4 @@ Log returns are used for statistical estimation and VaR. Simple returns are used
 
 > VaR is not a guarantee of maximum loss. It is a probabilistic threshold estimate. Tail events can exceed VaR.
 
-Expected Shortfall, EVT diagnostics, frozen-allocation out-of-sample backtests, stress replay and risk contributions are implemented; see ANALYTICAL_LAYERS.md for definitions and output contracts. The model excludes fees, taxes, liquidity and trading costs. Hypothetical shocks are assumptions rather than forecasts. CAPM and covariance estimates are sample-dependent.
+Expected Shortfall is needed to summarize losses beyond the VaR threshold. EVT may improve tail extrapolation, while formal backtesting is required to assess forecast calibration. The current model does not capture fees, taxes, liquidity, trading costs, changing market regimes, or forward-looking shocks. CAPM and covariance estimates are sample-dependent.
