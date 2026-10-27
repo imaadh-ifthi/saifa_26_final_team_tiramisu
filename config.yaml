@@ -74,3 +74,27 @@ evt:
   min_exceedances: 50
   shape_tolerance: 0.15
   scale_tolerance: 0.25
+stress:
+  rebalance: daily
+  historical:
+  - name: GFC 2008
+    start: '2008-01-01'
+    end: '2009-03-09'
+  - name: COVID crash
+    start: '2020-02-19'
+    end: '2020-03-23'
+  - name: 2022 rate shock
+    start: '2022-01-01'
+    end: '2022-12-30'
+  hypothetical:
+  - name: Stagflation and equity selloff
+    description: Assumed simultaneous one-period shocks; a sensitivity scenario, not
+      a forecast.
+    shocks:
+      SPY: -0.25
+      EFA: -0.28
+      EEM: -0.35
+      AGG: -0.12
+      GLD: 0.08
+      XLE: -0.15
+      XLK: -0.35

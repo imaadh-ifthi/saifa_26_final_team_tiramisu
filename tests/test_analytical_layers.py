@@ -22,6 +22,12 @@ from src.quantedge.evt import fit_thresholds, select_threshold, gpd_risk
 from src.quantedge.risk import build_risk_forecasts, common_evaluation_sample
 
 
+from src.quantedge.contributions import risk_contributions
+
+
+from src.quantedge.stress import historical_stress, hypothetical_stress
+
+
 from src.quantedge.kpis import max_drawdown
 
 
@@ -29,10 +35,6 @@ from src.quantedge.config import load_config
 
 
 from src.quantedge.var import build_var_suite
-
-
-def test_initial_drawdown_includes_starting_wealth():
-    assert max_drawdown(pd.Series([-.1, 0.])) == pytest.approx(-.1)
 
 
 def test_empirical_es_fractional_tail_and_correct_dollar_transform():
@@ -143,6 +145,43 @@ def test_evt_diagnostics_recover_exponential_shape_and_fail_insufficient_tail():
     assert select_threshold(insufficient, .99)[0] is None
 
 
+def test_risk_components_add_up_and_match_finite_differences():
+    rng = np.random.default_rng(9)
+    data = pd.DataFrame(rng.normal(.0001, .01, (300, 3)), columns=list("ABC"),
+                        index=pd.bdate_range("2020-01-01", periods=300))
+    weights = pd.Series([.4, .35, .25], index=data.columns)
+    result = risk_contributions(data, weights, [.95, .99], 1e7)
+    for (method, c), group in result.groupby(["method", "confidence"]):
+        assert group.component_var.sum() == pytest.approx(group.portfolio_var.iloc[0])
+        assert group.component_es.sum() == pytest.approx(group.portfolio_es.iloc[0])
+        assert group.component_es_usd.sum() == pytest.approx(group.portfolio_es.iloc[0]*1e7)
+        if method == "historical_simple":
+            losses = -data.to_numpy() @ weights.to_numpy()
+            epsilon = 1e-7
+            for j, (_, row) in enumerate(group.iterrows()):
+                bumped = losses-epsilon*data.iloc[:, j].to_numpy()
+                derivative = (np.quantile(bumped, c)-np.quantile(losses, c))/epsilon
+                assert row.marginal_var == pytest.approx(derivative, abs=1e-7)
+
+
+def test_stress_paths_rebalance_policy_shocks_and_initial_drawdown():
+    dates = pd.bdate_range("2020-01-01", periods=2)
+    data = pd.DataFrame({"A": [-.1, .1], "B": [0, 0]}, index=dates)
+    weights = pd.Series({"A": .5, "B": .5})
+    scenarios = [{"name": "test", "start": str(dates[0].date()), "end": str(dates[-1].date())}]
+    daily, paths = historical_stress(data, weights, scenarios, 100)
+    held, _ = historical_stress(data, weights, scenarios, 100, "buy_and_hold")
+    assert daily.cumulative_return.iloc[0] == pytest.approx(.95*1.05-1)
+    assert held.cumulative_return.iloc[0] == pytest.approx(.5*.9*1.1+.5-1)
+    assert paths.drawdown.iloc[0] == pytest.approx(-.05)
+    assert max_drawdown(pd.Series([-.1, 0])) == pytest.approx(-.1)
+    shocks, components = hypothetical_stress(weights, [{"name": "shock", "shocks": {"A": -.2, "B": .1}}], 100)
+    assert shocks.pnl_usd.iloc[0] == pytest.approx(-5)
+    assert components.pnl_contribution_usd.sum() == pytest.approx(-5)
+    with pytest.raises(ValueError, match="Every asset"):
+        hypothetical_stress(weights, [{"name": "bad", "shocks": {"A": -.2}}], 100)
+
+
 def test_unavailable_evt_and_internal_gaps_are_not_silently_validated():
     config = _small_config()
     dates = pd.bdate_range("2020-01-01", periods=240)
@@ -151,3 +190,12 @@ def test_unavailable_evt_and_internal_gaps_are_not_silently_validated():
     assert diagnostics.status.eq("insufficient_exceedances").all()
     with pytest.raises(ValueError, match="no forecasts"):
         common_evaluation_sample(forecasts, ["historical", "parametric_ewma", "monte_carlo_bootstrap", "evt_gpd"])
+
+
+def test_stress_marks_truncated_crisis_data():
+    dates = pd.bdate_range("2020-03-01", periods=10)
+    data = pd.DataFrame({"A": -.01}, index=dates)
+    weights = pd.Series({"A": 1.})
+    report, _ = historical_stress(data, weights,
+        [{"name": "partial", "start": "2020-01-01", "end": "2020-03-31"}], 100)
+    assert report.status.iloc[0] == "partial_data"
