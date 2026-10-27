@@ -61,8 +61,8 @@ def run(config_path: str = "config.yaml") -> None:
         (prices, tables/"prices.csv"), (log_returns, tables/"log_returns.csv"), (simple_returns, tables/"simple_returns.csv"),
         (log_returns, processed/"log_returns.csv"), (simple_returns, processed/"simple_returns.csv"),
         (data_quality, tables/"data_quality_report.csv"), (adf, tables/"adf_report.csv"),
-        (mu.rename("expected_return_annual").to_frame(), tables/"expected_returns.csv"), (sigma, tables/"covariance_matrix.csv"),
-        (frontier, tables/"efficient_frontier.csv"), (weights.rename("weight").to_frame(), tables/"portfolio_weights.csv"),
+        (mu.rename_axis("Ticker").rename("expected_return_annual").to_frame(), tables/"expected_returns.csv"), (sigma.rename_axis("asset"), tables/"covariance_matrix.csv"),
+        (frontier, tables/"efficient_frontier.csv"), (weights.rename_axis("asset").rename("weight").to_frame(), tables/"portfolio_weights.csv"),
         (pd.DataFrame([kpis]), tables/"kpi_summary.csv"), (var_summary, tables/"var_summary.csv"),
         (var_forecasts, tables/"var_forecasts.csv"),
     ]

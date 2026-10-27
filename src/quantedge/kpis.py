@@ -9,7 +9,7 @@ def cumulative_wealth(returns: pd.Series) -> pd.Series:
 
 def max_drawdown(returns: pd.Series) -> float:
     wealth = cumulative_wealth(returns)
-    return float((wealth / wealth.cummax() - 1).min()) if not wealth.empty else float("nan")
+    return float((wealth / wealth.cummax().clip(lower=1) - 1).min()) if not wealth.empty else float("nan")
 
 
 def compute_kpis(portfolio_returns: pd.Series, benchmark_returns: pd.Series, market_returns: pd.Series, risk_free_annual: float, periods_per_year: int = 252) -> dict:
