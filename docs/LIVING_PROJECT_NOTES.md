@@ -1,13 +1,13 @@
 # Living Project Notes
 
 ## Last Updated
-- Date: 2026-10-23
+- Date: 2026-10-27
 - Agent: Codex
 - Commit hash / branch: see Git history on `main`
 
 ## Current Status
-- What is working: config-driven Layers 1 and 2 pipeline, public-data run, and unit tests (3 passed).
-- What is incomplete: Expected Shortfall, EVT, formal backtesting, and interactive dashboard remain future layers.
+- What is working: all five analytical layers, historical/hypothetical stress tests, position risk contributions, and 31 passing tests including separate experimental candidates.
+- What is incomplete: integration with the preserved UI draft and team-authored investment interpretation.
 - What is blocked: none known.
 
 ## Repository Overview
@@ -58,18 +58,23 @@
 - Output files: `outputs/tables/var_summary.csv`, `var_forecasts.csv`, and `var_method_comparison.md`.
 
 ## Known Issues
-- Issue: risk-free rate is the latest DGS3MO observation, treated as constant. Impact: KPI risk-free adjustment is not time varying. Proposed fix: align full history to portfolio dates.
-- Issue: VaR does not quantify losses beyond the threshold. Impact: tail severity is omitted. Proposed fix: Expected Shortfall, EVT, and stress tests.
+- Retrospective KPIs retain the latest risk-free quote; OOS KPIs now align a historical as-of rate series.
+- Several OOS calibration tests reject, especially at 99%; green recent traffic lights do not override failures over the full evaluation period.
+- One EVT refit lacks adjacent-threshold stability and is explicitly flagged for review. Tail dependence and threshold uncertainty remain limitations.
 
 ## Next Steps for Teammates
-- Bhaveenthan: extend Expected Shortfall and EVT.
-- Rashad: implement formal VaR backtests.
-- Daniel / Daniru: integrate the tidy dashboard artifacts.
+- Review the tail fits and model rejections before defending the methodology.
+- Integrate the documented analytical CSV contracts into the preserved UI draft.
+- Write the investment memo, tear sheet and final AI-use disclosure after human validation.
 
 ## Change Log
 | Date | Agent | Change | Files Affected | Reason |
 |---|---|---|---|---|
+| 2026-10-27 | Codex | Added isolated filtered historical/bootstrap, EWMA-Student-t and filtered EVT candidates plus fixed sensitivities; compared 11 variants on identical dates; 31 software tests pass | `experiments/improved_risk/`, README | Investigate calibration without replacing or tuning the baselines to pass |
+| 2026-10-26 | Codex | Stashed the UI draft; implemented ES, EVT, frozen-allocation OOS validation, stress tests and Euler contributions; ran snapshot pipeline and 18 tests | `src/`, tests, `config.yaml`, outputs, docs | Complete required analytical layers with explicit timing and diagnostic evidence |
 | 2026-10-23 | Codex | Added configurable Layers 1 and 2 foundation and team documentation | `src/`, `config.yaml`, `docs/`, tests | Establish reproducible analysis engine |
 | 2026-10-23 | Codex | Ran pipeline on public data and recorded portfolio, data quality, ADF, VaR, and KPI results | `outputs/`, `docs/` | Establish an auditable initial run |
 
 | 2026-10-23 | Codex | Ran configured pipeline; target 6.50%, expected return 8.02%, volatility 7.57% | outputs/, docs/ | Record reproducible results |
+
+| 2026-10-26 | Codex | Ran configured pipeline; target 6.50%, expected return 8.01%, volatility 7.57% | outputs/, docs/ | Record reproducible results |
