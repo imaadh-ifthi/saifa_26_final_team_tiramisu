@@ -2,10 +2,11 @@
 import numpy as np
 import pandas as pd
 from .tail import empirical_risk, normal_risk
+from .evt import rolling_evt
 
 
 def build_risk_forecasts(log_returns: pd.Series, config: dict,
-                         start_date=None, include_evt: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
+                         start_date=None, include_evt: bool = True) -> tuple[pd.DataFrame, pd.DataFrame]:
     values = log_returns.to_numpy(dtype=float)
     if (log_returns.index.has_duplicates or not log_returns.index.is_monotonic_increasing
             or not np.isfinite(values).all()):
@@ -41,7 +42,7 @@ def build_risk_forecasts(log_returns: pd.Series, config: dict,
     forecasts = pd.DataFrame(rows)
     diagnostics = pd.DataFrame()
     if include_evt:
-        raise NotImplementedError("EVT integration follows in a separate commit")
+        evt, diagnostics = rolling_evt(log_returns, confidences, config.get("evt", {}), start_date)
         forecasts = pd.concat([forecasts, evt], ignore_index=True)
     if forecasts.empty:
         raise ValueError("Insufficient observations to produce risk forecasts")

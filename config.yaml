@@ -63,3 +63,14 @@ var:
 outputs:
   save_parquet: true
   save_csv: true
+evt:
+  window: 1000
+  refit_every: 21
+  threshold_quantiles:
+  - 0.85
+  - 0.9
+  - 0.925
+  - 0.95
+  min_exceedances: 50
+  shape_tolerance: 0.15
+  scale_tolerance: 0.25

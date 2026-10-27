@@ -16,6 +16,9 @@ from src.quantedge.tail import empirical_risk, normal_risk, tail_weights
 from src.quantedge.backtesting import kupiec_test, christoffersen_test, basel_traffic_light, backtest_forecasts
 
 
+from src.quantedge.evt import fit_thresholds, select_threshold, gpd_risk
+
+
 from src.quantedge.risk import build_risk_forecasts, common_evaluation_sample
 
 
@@ -83,3 +86,68 @@ def test_basel_uses_last_250_observations_and_requires_full_window():
     assert basel_traffic_light(np.r_[np.ones(10), np.zeros(240)], .99)["traffic_light"] == "red"
     assert basel_traffic_light(np.zeros(249), .99)["traffic_light"] == "insufficient_data"
     assert basel_traffic_light(np.zeros(250), .95)["traffic_light"] == "not_applicable"
+
+
+def _small_config():
+    cfg = load_config()
+    cfg["var"].update(historical_window=40, monte_carlo_window=40,
+                      monte_carlo_simulations=500, ewma_min_periods=20)
+    cfg["evt"].update(window=200, refit_every=30, min_exceedances=15,
+                      threshold_quantiles=[.8, .85, .9], shape_tolerance=1, scale_tolerance=1)
+    return cfg
+
+
+def test_forecasts_do_not_change_when_today_and_future_change():
+    cfg = _small_config()
+    dates = pd.bdate_range("2010-01-01", periods=250)
+    returns = pd.Series(np.random.default_rng(12).standard_t(6, 250)*.01, index=dates)
+    before, diag = build_risk_forecasts(returns, cfg, start_date=dates[200])
+    changed = returns.copy()
+    changed.iloc[220:] = -.4
+    after, _ = build_risk_forecasts(changed, cfg, start_date=dates[200])
+    cols = ["method", "confidence", "date", "var_log", "es_log", "es_simple_pct"]
+    pd.testing.assert_frame_equal(before.loc[before.date <= dates[220], cols].reset_index(drop=True),
+                                  after.loc[after.date <= dates[220], cols].reset_index(drop=True))
+    assert (before.estimation_end < before.date).all()
+    assert (diag.estimation_end < diag.fit_date).all()
+    assert (before.es_simple_pct+1e-12 >= before.var_simple_pct).all()
+    assert set(before.method) == {"historical", "parametric_ewma", "monte_carlo_bootstrap", "evt_gpd"}
+    common = common_evaluation_sample(before, list(before.method.unique()))
+    assert common.groupby(["method", "confidence"]).size().nunique() == 1
+    legacy, summary = build_var_suite(returns, cfg)
+    assert {"es_log", "es_usd", "evaluation_basis"}.issubset(legacy)
+    assert "latest_es_usd" in summary
+
+
+def test_gpd_exponential_limit_and_infinite_log_es():
+    result = gpd_risk(.02, 0, .01, .1, .99)
+    v = .02+.01*np.log(10)
+    assert result["var_log"] == pytest.approx(v)
+    assert result["es_log"] == pytest.approx(v+.01)
+    assert result["es_simple_pct"] == pytest.approx(1-np.exp(-v)/1.01)
+    assert gpd_risk(.02, 1.1, .01, .1, .99)["es_log"] == np.inf
+    assert gpd_risk(.02, 1.1, .01, .1, .99)["es_simple_pct"] < 1
+    with pytest.raises(ValueError, match="below"):
+        gpd_risk(.02, .1, .01, .05, .90)
+
+
+def test_evt_diagnostics_recover_exponential_shape_and_fail_insufficient_tail():
+    rng = np.random.default_rng(42)
+    losses = rng.exponential(.01, 5000)
+    report = fit_thresholds(pd.Series(-losses), [.85, .9, .95], 100)
+    chosen, status = select_threshold(report, .9)
+    assert abs(chosen["shape"]) < .15
+    assert status == "stable_adjacent_thresholds"
+    assert {"mean_excess", "modified_scale", "ks_statistic", "stable_with_next"}.issubset(report)
+    insufficient = fit_thresholds(pd.Series(-losses[:20]), [.9], 50)
+    assert select_threshold(insufficient, .99)[0] is None
+
+
+def test_unavailable_evt_and_internal_gaps_are_not_silently_validated():
+    config = _small_config()
+    dates = pd.bdate_range("2020-01-01", periods=240)
+    flat = pd.Series(0., index=dates)
+    forecasts, diagnostics = build_risk_forecasts(flat, config, dates[200])
+    assert diagnostics.status.eq("insufficient_exceedances").all()
+    with pytest.raises(ValueError, match="no forecasts"):
+        common_evaluation_sample(forecasts, ["historical", "parametric_ewma", "monte_carlo_bootstrap", "evt_gpd"])
