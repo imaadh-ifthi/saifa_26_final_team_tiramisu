@@ -1,39 +1,16 @@
 import numpy as np
-
-
 import pandas as pd
-
-
 import pytest
-
-
 from scipy.stats import norm, chi2
-
-
 from src.quantedge.tail import empirical_risk, normal_risk, tail_weights
-
-
 from src.quantedge.backtesting import kupiec_test, christoffersen_test, basel_traffic_light, backtest_forecasts
-
-
 from src.quantedge.evt import fit_thresholds, select_threshold, gpd_risk
-
-
 from src.quantedge.risk import build_risk_forecasts, common_evaluation_sample
-
-
 from src.quantedge.contributions import risk_contributions
-
-
 from src.quantedge.stress import historical_stress, hypothetical_stress
-
-
 from src.quantedge.kpis import max_drawdown
-
-
+from src.quantedge.analytics import fit_training_portfolio, run_analytical_layers, export_analytical_layers
 from src.quantedge.config import load_config
-
-
 from src.quantedge.var import build_var_suite
 
 
@@ -180,6 +157,72 @@ def test_stress_paths_rebalance_policy_shocks_and_initial_drawdown():
     assert components.pnl_contribution_usd.sum() == pytest.approx(-5)
     with pytest.raises(ValueError, match="Every asset"):
         hypothetical_stress(weights, [{"name": "bad", "shocks": {"A": -.2}}], 100)
+
+
+def test_training_weights_are_invariant_to_future_returns_and_rates():
+    cfg, data, rates, weights = _integration_fixture()
+    first, metadata = fit_training_portfolio(data, rates, cfg)
+    modified = data.copy()
+    modified.loc[cfg["validation"]["test_start"]:] *= -10
+    future_rates = rates.copy()
+    future_rates.loc[cfg["validation"]["test_start"]:] = 100
+    second, metadata2 = fit_training_portfolio(modified, future_rates, cfg)
+    pd.testing.assert_series_equal(first, second)
+    assert metadata == metadata2
+    assert pd.Timestamp(metadata["training_end"]) < pd.Timestamp(cfg["validation"]["test_start"])
+    cfg["validation"]["train_end"] = cfg["validation"]["test_start"]
+    with pytest.raises(ValueError, match="before"):
+        fit_training_portfolio(data, rates, cfg)
+
+
+def _integration_fixture():
+    cfg = _small_config()
+    dates = pd.bdate_range("2010-01-01", periods=650)
+    rng = np.random.default_rng(22)
+    data = pd.DataFrame(rng.standard_t(8, (650, 7))*.008+.0004,
+                        index=dates, columns=cfg["data"]["tickers"])
+    cfg["portfolio"]["target_return_annual"] = .01
+    cfg["validation"].update(train_start=str(dates[0].date()), train_end=str(dates[499].date()),
+                              test_start=str(dates[500].date()), min_train_observations=300)
+    cfg["stress"]["historical"] = [{"name": "fixture", "start": str(dates[0].date()), "end": str(dates[50].date())}]
+    rates = pd.Series(2., index=dates)
+    weights = pd.Series([.2, .15, .05, .4, .1, .05, .05], index=data.columns)
+    return cfg, data, rates, weights
+
+
+def test_end_to_end_exports_and_evaluation_alignment(tmp_path):
+    cfg, data, rates, weights = _integration_fixture()
+    tables, metadata = run_analytical_layers(data, rates, weights, cfg)
+    export_analytical_layers(tables, metadata, cfg, tmp_path)
+    forecasts = tables["risk_forecasts_oos"]
+    assert len(tables["backtest_results"]) == 12
+    assert forecasts.date.min() == data.index[500]
+    assert forecasts.groupby(["method", "confidence"]).size().eq(150).all()
+    assert (forecasts.allocation_training_end < forecasts.date).all()
+    assert tables["oos_kpi_summary"].observations.iloc[0] == 150
+    assert pd.read_csv(tmp_path/"outputs/tables/oos_portfolio_weights.csv").asset.tolist() == list(weights.index)
+    assert (tmp_path/"outputs/models/analytical_run.json").exists()
+    with pytest.raises(ValueError, match="gaps"):
+        # Remove an interior point instead of the first evaluation date.
+        backtest_forecasts(forecasts.drop(forecasts.index[12]))
+
+
+def test_full_pipeline_exports_all_layers_from_raw_prices(tmp_path, monkeypatch):
+    from src.quantedge import main as pipeline
+    cfg, returns, rates, _ = _integration_fixture()
+    prices = 100*(1+returns).cumprod()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(pipeline, "load_config", lambda _: cfg)
+    prices.to_csv(tmp_path/"prices.csv")
+    rates.rename("DGS3MO").to_csv(tmp_path/"rates.csv")
+    pipeline.run(prices_path=str(tmp_path/"prices.csv"), risk_free_path=str(tmp_path/"rates.csv"))
+    tables = tmp_path/"outputs/tables"
+    assert pd.read_csv(tables/"portfolio_weights.csv").asset.tolist() == list(returns.columns)
+    assert pd.read_csv(tables/"expected_returns.csv").Ticker.tolist() == list(returns.columns)
+    assert pd.read_csv(tables/"covariance_matrix.csv").asset.tolist() == list(returns.columns)
+    assert {"es_usd", "var_usd", "evaluation_basis"}.issubset(pd.read_csv(tables/"var_forecasts.csv"))
+    assert len(pd.read_csv(tables/"backtest_results.csv")) == 12
+    assert (tmp_path/"outputs/models/analytical_run.json").exists()
 
 
 def test_unavailable_evt_and_internal_gaps_are_not_silently_validated():
