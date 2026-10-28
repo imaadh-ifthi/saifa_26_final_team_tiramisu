@@ -1,4 +1,5 @@
 """POT/GPD tail fits, threshold stability diagnostics and sensitivity estimates."""
+import math
 import numpy as np
 import pandas as pd
 from scipy.integrate import quad
@@ -23,8 +24,20 @@ def gpd_risk(threshold: float, shape: float, scale: float,
     # Conditional excess Y above VaR is GPD(xi, beta + xi*(VaR-u)).
     # E[1-exp(-(VaR+Y))] = 1-exp(-VaR) + exp(-VaR)*integral exp(-y) S_Y(y) dy.
     upper = min(-conditional_scale/shape, 40.0) if shape < 0 else 40.0
-    integral = quad(lambda y: np.exp(-y)*genpareto.sf(y, shape, scale=conditional_scale),
-                    0, upper, epsabs=1e-9)[0]
+    def discounted_survival(y):
+        # Scalar closed-form GPD survival avoids scipy.stats broadcasting and
+        # validation at every quadrature point. The model and integral are unchanged.
+        scaled = y/conditional_scale
+        if shape == 0:
+            log_survival = -scaled
+        else:
+            argument = shape*scaled
+            if argument <= -1:
+                return 0.0
+            log_survival = -math.log1p(argument)/shape
+        return math.exp(-y+log_survival)
+
+    integral = quad(discounted_survival, 0, upper, epsabs=1e-9)[0]
     return {"var_log": max(0.0, raw_var), "es_log": max(0.0, es_log),
             "var_simple_pct": max(0.0, float(-np.expm1(-raw_var))),
             "es_simple_pct": max(0.0, float(-np.expm1(-raw_var)+np.exp(-raw_var)*integral))}

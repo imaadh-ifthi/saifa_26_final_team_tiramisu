@@ -19,7 +19,7 @@ def run(config_path: str = "config.yaml", prices_path: str | None = None,
     ensure_output_dirs(root)
     log = get_logger()
     tickers = cfg["data"]["tickers"]
-    prices = (pd.read_csv(prices_path, index_col=0, parse_dates=True) if prices_path else
+    prices = (pd.read_csv(prices_path, index_col=0, parse_dates=True, float_precision="round_trip") if prices_path else
               load_or_download_prices(tickers, cfg["data"]["start_date"], None, cfg["data"]["cache_raw_data"], root))
     missing_tickers = set(tickers).difference(prices.columns)
     if missing_tickers:
@@ -89,11 +89,12 @@ def run(config_path: str = "config.yaml", prices_path: str | None = None,
         "For a conservative client, compare methods and supplement them with Expected Shortfall and stress analysis. VaR is not a guarantee of maximum loss.\n",
         encoding="utf-8",
     )
-    update_docs(prices, weights, expected, volatility, var_summary, data_quality, adf, selected_target)
+    update_docs(prices, weights, expected, volatility, var_summary, data_quality, adf, selected_target,
+                str(est_simple.index.min().date()))
     log.info("Pipeline complete: target %.3f, expected return %.3f, volatility %.3f", selected_target, expected, volatility)
 
 
-def update_docs(prices: pd.DataFrame, weights: pd.Series, expected: float, volatility: float, var_summary: pd.DataFrame, quality: pd.DataFrame, adf: pd.DataFrame, target: float) -> None:
+def update_docs(prices: pd.DataFrame, weights: pd.Series, expected: float, volatility: float, var_summary: pd.DataFrame, quality: pd.DataFrame, adf: pd.DataFrame, target: float, estimation_start: str) -> None:
     from datetime import date
     today = date.today().isoformat()
     docs = Path("docs")
@@ -138,7 +139,7 @@ def update_docs(prices: pd.DataFrame, weights: pd.Series, expected: float, volat
 
 ## Data Governance
 - Source: Yahoo Finance via yfinance and FRED DGS3MO.
-- Start date: 2007-01-01; estimation begins 2010-01-01.
+- Start date: {prices.index.min().date()}; estimation begins {estimation_start}.
 - Adjusted close used: yes.
 - Calendar alignment: no forward fill; complete rows used for portfolio time series.
 - Missing data treatment: reported; incomplete price rows retained in exports.

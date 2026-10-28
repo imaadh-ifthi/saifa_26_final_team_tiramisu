@@ -110,7 +110,7 @@ def main() -> None:
     for protected in (Path("outputs"), Path("data"), Path("src")):
         if output == protected.resolve() or protected.resolve() in output.parents:
             raise ValueError("Experimental exports must be outside baseline outputs, data and source folders")
-    prices = pd.read_csv(args.prices, index_col=0, parse_dates=True)
+    prices = pd.read_csv(args.prices, index_col=0, parse_dates=True, float_precision="round_trip")
     _, simple = compute_returns(prices)
     complete = simple.loc[:, base["data"]["tickers"]].dropna()
     rates = load_fred_csv(args.risk_free, base["data"]["fred_risk_free_series"])

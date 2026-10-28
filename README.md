@@ -14,9 +14,9 @@ This repository contains the quantitative analysis engine for the Quant Edge 1.0
 
 ## Current Status
 
-The five analytical layers are implemented and export results. The full pipeline has been exercised on saved market prices and public FRED history. The test suite includes baseline and separate experimental-model checks. Passing software tests does not establish that the risk models are well calibrated: in the recorded baseline run, all four models rejected 99% coverage under Kupiec's test, and one EVT refit carried a threshold-stability warning. Review these results before presenting an investment recommendation.
+The five analytical layers are implemented and export results. The full pipeline has been exercised on saved market prices and public FRED history. The test suite includes baseline and separate experimental-model checks. Passing software tests does not establish that the risk models are well calibrated. With the current 2007-start training allocation, the four unchanged baseline methods record 31 to 48 exceptions in 2,212 evaluation days at 99% VaR; none avoids rejection by the joint conditional-coverage test. Review the current backtest exports and EVT warnings before presenting an investment recommendation.
 
-The current `app/streamlit_placeholder.py` is a placeholder, so this working tree does not yet provide the required interactive Streamlit application. The UI draft was saved locally in the Git stash named `UI draft before analytical layers`. A local stash is not included in a normal repository clone.
+The current `app/streamlit_placeholder.py` is a placeholder, so this working tree does not yet provide the required interactive Streamlit application. The UI draft is saved locally in the Git stash named `UI draft restored preview - saved again`. A local stash is not included in a normal repository clone.
 
 The eligible universe is SPY, EFA, EEM, AGG, GLD, XLE, and XLK. Weights are determined by the configured constrained target-return minimum-variance optimization.
 
@@ -72,7 +72,7 @@ To also regenerate the current allocation and original VaR/ES exports entirely f
 python -m src.quantedge.main --prices outputs/tables/prices.csv --risk-free data/raw/risk_free.csv
 ```
 
-The default validation split fits portfolio weights on 2010–2017 and freezes them for 2018 onward. Risk models update using prior observations only. If the training-only return target is infeasible, the run fails explicitly rather than using full-sample weights. Configure the split, EVT thresholds, and stress assumptions in `config.yaml`. See [the analytical layer guide](docs/ANALYTICAL_LAYERS.md) for definitions and output schemas.
+The default validation split fits portfolio weights on 2007–2017, including the financial crisis, and freezes them for 2018 onward. Current-allocation estimation also begins in 2007. Risk models update using prior observations only. The 2008 stress replay now overlaps weight-estimation data and is a retrospective diagnostic, not an independent crisis test. Including a crisis in training does not guarantee smaller future losses. If the training-only return target is infeasible, the run fails explicitly rather than using full-sample weights. Configure the split, EVT thresholds, and stress assumptions in `config.yaml`. See [the analytical layer guide](docs/ANALYTICAL_LAYERS.md) for definitions and output schemas.
 
 ## Run Tests
 
@@ -82,7 +82,7 @@ pytest
 
 Separate candidate risk models and their comparisons live in [experiments/improved_risk](experiments/improved_risk/README.md). They have their own configuration, tests and output directory and do not replace the baseline models. Run the offline comparison with `python -m experiments.improved_risk.run`. These are development comparisons on an already inspected historical period, not a new untouched holdout.
 
-See the [experimental results review](experiments/improved_risk/RESULTS_REVIEW.md): filtering improves 99% coverage, but the filtered candidates still reject independence at 99%. No candidate is automatically promoted.
+See the [experimental results review](experiments/improved_risk/RESULTS_REVIEW.md) for the current training period, coverage and independence results. The separate [alert-response experiments](experiments/improved_risk/results/alert_breach_comparison/README.md) compare filtered historical, filtered bootstrap Monte Carlo and filtered EVT with the unchanged references. At 99%, the alert variants have 22, 22 and 25 exceptions respectively, and none is rejected by Kupiec, independence or joint coverage at 5% on this already-inspected development period. Filtered historical and bootstrap alert variants were also checked at 90% and 95%; the EVT alert variant has not been checked at those levels. These three models share the same alert rule, their favourable results are not independent validation, and they remain outside the main pipeline. No candidate is automatically promoted.
 
 ## Method Summary
 
@@ -129,7 +129,7 @@ Team review and independent human validation remain pending. Before submission, 
 
 | Priority | Work | Completion evidence |
 |---|---|---|
-| 1 | Review calibration failures and EVT warnings; justify model assumptions and parameter choices | Explain model disagreements, exception clustering and threshold sensitivity; evaluate any revised choices on a separately reserved period |
+| 1 | Review calibration failures and EVT warnings; justify model assumptions and parameter choices | Explain model disagreements, exception clustering and threshold sensitivity; freeze any chosen rule and evaluate it on future, uninspected observations |
 | 2 | Complete portfolio decision analysis | Justify investment horizon, the 6.5% return objective, exposure limits and the recommended allocation; compare alternatives using downside risk, stress losses and position risk contributions |
 | 3 | Improve the efficient-frontier demonstration | Choose feasible targets that actually change allocations; the current saved target grid produces the same minimum-variance portfolio at every point |
 | 4 | Restore and integrate the Streamlit draft | Confidence/method/date controls; allocation, wealth and drawdown; VaR/ES/EVT comparison; backtests and traffic light; stress results; assumptions and limitations |
@@ -137,7 +137,7 @@ Team review and independent human validation remain pending. Before submission, 
 | 6 | Prepare competition deliverables | A 7–15-page technical report/investment memo, a one-page executive tear sheet and actionable recommendation, and the pitch deck if selected for the final |
 | 7 | Verify submission reproducibility and disclosure | Record dependency versions, verify a clean environment and the documented app launch command, retain source-data provenance, and complete the human-reviewed AI disclosure |
 
-Possible extensions after these priorities include filtered EVT, volatility models beyond EWMA, uncertainty intervals, and transaction-cost/rebalancing sensitivity. These are extensions to investigate, not prerequisites for claiming that the basic analytical layers are implemented. Further model changes should not be selected merely to make existing backtest p-values pass.
+Possible extensions after these priorities include uncertainty intervals, volatility models beyond EWMA, and transaction-cost/rebalancing sensitivity. The separate filtered EVT and alert-response experiments need review and future evaluation before any integration. Further model changes should not be selected merely to make existing backtest p-values pass.
 
 ## Living Documentation
 

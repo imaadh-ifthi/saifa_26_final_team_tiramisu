@@ -1,0 +1,7 @@
+model,confidence,alert_active_days,days_with_higher_var,mean_uplift_active_usd,mean_uplift_all_days_usd,reference_breaches_avoided,new_breaches
+filtered_historical,0.9,124,124,31340.88317467977,1756.903035108631,4,0
+filtered_historical,0.95,124,124,43916.933385164986,2461.8895749369167,4,0
+filtered_historical,0.99,124,124,81814.51024476,4586.346867246943,7,0
+filtered_bootstrap,0.9,124,124,31595.067567769704,1771.1520698026416,6,0
+filtered_bootstrap,0.95,124,124,44269.416534814736,2481.649028172254,4,0
+filtered_bootstrap,0.99,124,124,83313.74162812122,4670.390579514933,7,0

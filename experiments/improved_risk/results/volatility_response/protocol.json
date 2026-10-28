@@ -1,0 +1,11 @@
+{
+  "protocol": "fixed_volatility_response_probe_v1",
+  "confidence": 0.99,
+  "reference_ewma_lambda": 0.94,
+  "alternative_ewma_lambda": 0.9,
+  "models": [
+    "filtered_historical",
+    "filtered_bootstrap"
+  ],
+  "evaluation": "same_2018_2026_dates_and_frozen_allocation_as_existing_experiment"
+}

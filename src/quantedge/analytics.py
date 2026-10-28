@@ -143,7 +143,7 @@ def main() -> None:
     parser.add_argument("--portfolio", default="outputs/models/selected_portfolio.json")
     args = parser.parse_args()
     config = load_config(args.config)
-    prices = pd.read_csv(args.prices, index_col=0, parse_dates=True)
+    prices = pd.read_csv(args.prices, index_col=0, parse_dates=True, float_precision="round_trip")
     _, simple = compute_returns(prices)
     if args.risk_free:
         risk_free = load_fred_csv(args.risk_free, config["data"]["fred_risk_free_series"])

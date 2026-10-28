@@ -1,19 +1,19 @@
 {
-  "training_start": "2010-01-04",
+  "training_start": "2007-01-04",
   "training_end": "2017-12-29",
-  "training_observations": 2013,
+  "training_observations": 2768,
   "risk_free_quote_date": "2017-12-29",
   "risk_free_annual": 0.0139,
   "target_return_annual": 0.065,
-  "expected_return_annual": 0.06845089109516103,
+  "expected_return_annual": 0.06500000000007466,
   "weights": {
-    "SPY": 0.24456132299398647,
-    "EFA": 0.0131503002086335,
-    "EEM": 6.288372600415926e-18,
-    "AGG": 0.4499999999999999,
+    "SPY": 0.3208570695600638,
+    "EFA": 1.9836305881713327e-16,
+    "EEM": 0.0,
+    "AGG": 0.3791429304399358,
     "GLD": 0.15,
-    "XLE": 8.090858712173077e-18,
-    "XLK": 0.14228837679738013
+    "XLE": 2.3262139079472995e-16,
+    "XLK": 0.14999999999999997
   },
   "rebalancing": "daily_constant_weights_no_costs",
   "test_start": "2018-01-02",
@@ -21,13 +21,13 @@
   "evaluation_observations": 2212,
   "data_cutoff": "2026-10-20",
   "current_weights": {
-    "SPY": 0.23174078548670018,
-    "EFA": 0.11838737709252461,
-    "EEM": 0.013300417436364715,
-    "AGG": 0.45,
-    "GLD": 0.15,
-    "XLE": 0.024825087025660126,
-    "XLK": 0.011746332958750171
+    "SPY": 0.22807378821751478,
+    "EFA": 0.0961127229084155,
+    "EEM": 8.239936510889834e-18,
+    "AGG": 0.44999999999999996,
+    "GLD": 0.14999999999999997,
+    "XLE": 0.012714857253651284,
+    "XLK": 0.0630986316204186
   },
   "stress_allocation_basis": "current_weights_retrospective_replay",
   "forecast_notional_usd": 10000000,
@@ -53,7 +53,7 @@
       "cache_raw_data": true
     },
     "estimation": {
-      "core_start_date": "2010-01-01",
+      "core_start_date": "2007-01-01",
       "trading_days_per_year": 252,
       "expected_return_shrinkage_to_prior": 0.5,
       "covariance_shrinkage": 0.25
@@ -108,7 +108,7 @@
       "ewma_min_periods": 60
     },
     "validation": {
-      "train_start": "2010-01-01",
+      "train_start": "2007-01-01",
       "train_end": "2017-12-31",
       "test_start": "2018-01-01",
       "test_end": null,

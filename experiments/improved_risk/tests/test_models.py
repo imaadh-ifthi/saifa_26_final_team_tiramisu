@@ -10,6 +10,7 @@ from scipy.stats import t
 from experiments.improved_risk.models import (causal_volatility, fit_student_df, student_risk,
                                                filtered_gpd_risk, build_improved_forecasts, empirical_variant)
 from experiments.improved_risk.run import compare_models, export_comparison
+from experiments.improved_risk.volatility_probe import forecasts_for_lambda
 from src.quantedge.config import load_config
 from src.quantedge.evt import gpd_risk
 from src.quantedge.tail import normal_risk
@@ -151,3 +152,20 @@ def test_degenerate_tail_sample_fails_explicitly():
     returns[:] = 0
     with pytest.raises(ValueError, match="varying finite"):
         build_improved_forecasts(returns, base, config, base["validation"]["test_start"])
+
+
+def test_fixed_volatility_probe_uses_prior_returns_and_same_dates():
+    returns, base, experiment = settings()
+    start = pd.Timestamp(base["validation"]["test_start"])
+    reference = forecasts_for_lambda(returns, start, base, experiment, .94)
+    faster = forecasts_for_lambda(returns, start, base, experiment, .90)
+    assert len(reference) == len(faster) == 140
+    assert reference[["date", "method"]].equals(faster[["date", "method"]])
+    assert (reference.estimation_end < reference.date).all()
+    changed = returns.copy()
+    changed.iloc[200:] = -.3
+    revised = forecasts_for_lambda(changed, start, base, experiment, .90)
+    cols = ["date", "method", "var_log", "var_usd", "forecast_volatility"]
+    pd.testing.assert_frame_equal(
+        faster[faster.date.le(returns.index[200])][cols].reset_index(drop=True),
+        revised[revised.date.le(returns.index[200])][cols].reset_index(drop=True))

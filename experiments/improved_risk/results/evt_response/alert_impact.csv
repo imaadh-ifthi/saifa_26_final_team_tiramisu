@@ -1,0 +1,3 @@
+reference,candidate,active_days,days_with_higher_var,average_uplift_active_days_usd,maximum_uplift_usd,reference_breaches_avoided,new_breaches
+raw_evt_daily_scale,raw_evt_daily_scale_cusum,124,124,71248.52198153418,213296.15582884656,4,0
+filtered_evt_reference,filtered_evt_cusum,124,124,76791.04628683777,438366.0315170898,6,0

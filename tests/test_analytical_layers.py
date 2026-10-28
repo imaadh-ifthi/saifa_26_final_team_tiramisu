@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 import pytest
-from scipy.stats import norm, chi2
+from scipy.stats import norm, chi2, genpareto
+from scipy.integrate import quad
 from src.quantedge.tail import empirical_risk, normal_risk, tail_weights
 from src.quantedge.backtesting import kupiec_test, christoffersen_test, basel_traffic_light, backtest_forecasts
 from src.quantedge.evt import fit_thresholds, select_threshold, gpd_risk
@@ -110,6 +111,19 @@ def test_gpd_exponential_limit_and_infinite_log_es():
         gpd_risk(.02, .1, .01, .05, .90)
 
 
+@pytest.mark.parametrize("shape", [-.6, -.01, 0., 1e-9, .2, 1.2])
+def test_scalar_gpd_survival_matches_scipy_quadrature(shape):
+    threshold, scale, confidence = .005, .003, .99
+    risk = gpd_risk(threshold, shape, scale, .15, confidence)
+    v = risk["var_log"]
+    conditional_scale = scale+shape*(v-threshold)
+    upper = min(-conditional_scale/shape, 40.) if shape < 0 else 40.
+    integral = quad(lambda y: np.exp(-y)*genpareto.sf(y, shape, scale=conditional_scale),
+                    0, upper, epsabs=1e-9)[0]
+    expected = -np.expm1(-v)+np.exp(-v)*integral
+    assert risk["es_simple_pct"] == pytest.approx(expected, abs=1e-12)
+
+
 def test_evt_diagnostics_recover_exponential_shape_and_fail_insufficient_tail():
     rng = np.random.default_rng(42)
     losses = rng.exponential(.01, 5000)
@@ -173,6 +187,24 @@ def test_training_weights_are_invariant_to_future_returns_and_rates():
     cfg["validation"]["train_end"] = cfg["validation"]["test_start"]
     with pytest.raises(ValueError, match="before"):
         fit_training_portfolio(data, rates, cfg)
+
+
+def test_training_can_include_2008_and_responds_to_crisis_period_returns():
+    cfg, data, rates, _ = _integration_fixture()
+    dates = pd.bdate_range("2007-01-01", periods=len(data))
+    data.index = dates
+    rates.index = dates
+    cfg["validation"].update(train_start="2007-01-01", train_end=str(dates[499].date()),
+                              test_start=str(dates[500].date()))
+    before, metadata = fit_training_portfolio(data, rates, cfg)
+    changed = data.copy()
+    crisis_dates = dates[dates.year == 2008][:5]
+    changed.loc[crisis_dates, "AGG"] = -.10
+    after, _ = fit_training_portfolio(changed, rates, cfg)
+    assert metadata["training_start"] == "2007-01-01"
+    assert metadata["training_observations"] == 500
+    assert len(crisis_dates) == 5
+    assert not np.allclose(before, after)
 
 
 def _integration_fixture():

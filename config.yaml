@@ -8,7 +8,7 @@ data:
   fred_risk_free_series: DGS3MO
   cache_raw_data: true
 estimation:
-  core_start_date: "2010-01-01"
+  core_start_date: "2007-01-01"
   trading_days_per_year: 252
   expected_return_shrinkage_to_prior: 0.5
   covariance_shrinkage: 0.25
@@ -33,7 +33,7 @@ var:
   monte_carlo_window: 252
   ewma_min_periods: 60
 validation:
-  train_start: "2010-01-01"
+  train_start: "2007-01-01"
   train_end: "2017-12-31"
   test_start: "2018-01-01"
   test_end: null

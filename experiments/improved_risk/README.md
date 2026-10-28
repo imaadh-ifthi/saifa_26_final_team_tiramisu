@@ -7,6 +7,11 @@ Run from the repository root:
 ```powershell
 python -m pytest experiments/improved_risk/tests -q
 python -m experiments.improved_risk.run
+python -m experiments.improved_risk.diagnose_breaches
+python -m experiments.improved_risk.volatility_probe
+python -m experiments.improved_risk.evt_response
+python -m experiments.improved_risk.filtered_response
+python -m experiments.improved_risk.plot_alert_breaches
 ```
 
 The comparison is offline and requires `outputs/tables/prices.csv` and `data/raw/risk_free.csv`. If the ignored FRED snapshot is absent, obtain it through the existing analytical pipeline first; see the root README. Paths can be supplied with `--prices`, `--risk-free`, `--base-config` and `--experiment-config`. The default results directory is `experiments/improved_risk/results/`.
@@ -15,7 +20,7 @@ The comparison is offline and requires `outputs/tables/prices.csv` and `data/raw
 
 The reviewed 2018–2026 historical period has already influenced the motivation for these experiments. It is **not an untouched holdout**. `config.yaml` declares all candidates before the comparison; there is no grid search, fitted VaR multiplier, discarded crisis period, altered test significance, or automatic promotion of a winner. The manifest records the protocol, input and implementation SHA-256 hashes, configurations, allocation provenance and dependency versions.
 
-Portfolio weights are estimated with the unchanged training-only allocation function, using the base configuration's 2010–2017 period and contemporaneously available risk-free quote. Each forecast is computed with information strictly before its realized return. All models/confidences must cover the complete identical evaluation period. Insufficient warmup or unavailable fits are errors rather than a reason to remove inconvenient dates.
+Portfolio weights are estimated with the unchanged training-only allocation function, using the base configuration's 2007–2017 period and contemporaneously available risk-free quote. Training now includes the financial crisis; the comparison is rerun with the resulting allocation. Each forecast is computed with information strictly before its realized return. All models/confidences must cover the complete identical evaluation period. Insufficient warmup or unavailable fits are errors rather than a reason to remove inconvenient dates.
 
 ## Models
 
@@ -38,7 +43,7 @@ The runner recomputes the unchanged four baseline methods on the same allocation
 
 ## Results
 
-Read [RESULTS_REVIEW.md](RESULTS_REVIEW.md) for interpretation of the first fixed comparison, including improved coverage and remaining independence failures.
+Read [RESULTS_REVIEW.md](RESULTS_REVIEW.md) for interpretation of the current fixed comparison. Results are regenerated when the base training window changes; consult the accompanying manifest for the exact period and configuration.
 
 * `results/comparison.md`: readable 99% comparison, including coverage, independence, conditional coverage and mean quantile loss.
 * `results/backtests.csv`: all confidences and legacy traffic lights.
@@ -49,6 +54,11 @@ Read [RESULTS_REVIEW.md](RESULTS_REVIEW.md) for interpretation of the first fixe
 * `results/baseline_evt_diagnostics.csv`: matching raw-EVT evidence.
 * `results/risk_summary.csv`: latest and average risk across models.
 * `results/manifest.json`: frozen settings and provenance for that run.
+* `results/diagnostics/diagnosis.md`: descriptive 99% breach analysis by year, short episodes and forecast-volatility regime. Its companion CSVs list each breach and realized asset loss contributions; `var_breach_timeline.png` plots the daily forecasts and losses. Run `diagnose_breaches` after regenerating forecasts.
+* `results/MECHANISM_REVIEW.md`: dated raw-EVT refit chronology, calm-period filtered breaches and interpretation of the separately declared 0.90 versus 0.94 EWMA response probe. `results/volatility_response/` contains its daily forecasts, backtests and yearly counts. Run `volatility_probe` after regenerating the base experiment.
+* `results/evt_response/REVIEW.md`: five-arm EVT daily-scale and next-day CUSUM experiment, with the crisis chart, complete forecast paths, backtests, alerts and provenance. `evt_response.yaml` declares its training-only calibration and response rule. Run `evt_response` after regenerating the base experiment.
+* `results/filtered_response/REVIEW.md`: side-by-side filtered historical and bootstrap forecasts with and without the same prior-close alert, at 90%, 95%, and 99%. The companion CSVs contain all daily forecasts, backtests, yearly counts, alert impact, and provenance. Run `filtered_response` after regenerating the base experiment.
+* `results/alert_breach_comparison/README.md`: an eight-panel chart of three distinct 99% alert candidates and their references, plus a repeated Monte Carlo candidate beside the original raw bootstrap; a March 2020 zoom and a counts/p-values summary are included. Run `plot_alert_breaches` after regenerating the EVT and filtered-response experiments.
 
 Passing software tests checks arithmetic, causality and export consistency. Non-rejection in a statistical test is different: it is not a guarantee of model adequacy. VaR tests do not validate ES. Tail asymmetry, jumps, filter misspecification, threshold/parameter uncertainty, and small tail samples remain limitations. A heavier-tailed distribution can worsen coverage at other confidences, and filtering can still miss abrupt volatility transitions.
 
