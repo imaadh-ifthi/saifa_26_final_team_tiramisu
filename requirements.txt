@@ -9,3 +9,4 @@ plotly
 pytest
 pyyaml
 pyarrow
+streamlit
