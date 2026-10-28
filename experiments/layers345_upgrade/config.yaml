@@ -1,0 +1,28 @@
+# Layer 3-5 upgrade experiment. All settings are fixed here BEFORE looking at results.
+# Values come from the papers cited in README.md, not from tuning on 2018-2026.
+garch:
+  window: 1000          # same window length as the baseline EVT
+  refit_every: 21       # monthly refit, same cadence as the baseline EVT
+evt:
+  fixed_threshold_quantile: 0.90               # McNeil and Frey (2000) used about the top 10%
+  eqd_candidates: [0.80, 0.82, 0.84, 0.86, 0.88, 0.90, 0.92, 0.94, 0.96]
+  eqd_bootstrap: 50
+  eqd_min_excesses: 40
+  interval_bootstrap: 500
+combination:
+  members: [gjr_t, gjr_fhs, gjr_evt]   # Taylor (2020): simple averages are hard to beat
+tests:
+  confidences: [0.90, 0.95, 0.99]
+  significance: 0.05
+  multinomial_base: 0.975              # Kratz, Lok and McNeil (2018): 4 levels from 97.5%
+  multinomial_levels: 4
+  de_lags: 5
+  dq_lags: 4
+  monte_carlo_sims: 5000
+  mcs_level: 0.10
+  mcs_bootstrap: 2000
+  mcs_block: 10
+# Daniel's saved candidate forecasts, included so everything is compared on one table
+daniel_candidates:
+  - {file: ../improved_risk/results/filtered_response/daily_forecasts.csv.gz, methods: [filtered_historical_reference, filtered_historical_alert, filtered_bootstrap_alert]}
+  - {file: ../improved_risk/results/evt_response/daily_forecasts.csv.gz, methods: [filtered_evt_cusum]}

@@ -1,0 +1,38 @@
+frozen_at_utc: '2026-10-28T13:10:17+00:00'
+winner:
+  name: gjrx_vix_evt_d1000
+  filter: gjrx_vix
+  window: 1000
+  refit_every: 1
+  complexity: 3
+reference: gjr_evt_m1000
+dev_period:
+- '2011-01-03'
+- '2017-12-29'
+dev_score_winner: -4.536254551147624
+dev_score_reference: -4.503641915027347
+ranking:
+- 'gjrx_vix_evt_d1000: score -4.53625, gates 6/6'
+- 'ms_gjr_t_m1000: score -4.52486, gates 6/6'
+- 'gjrx_range_evt_m1000: score -4.50708, gates 6/6'
+- 'gjr_evt_m500: score -4.50469, gates 6/6'
+- 'gjr_evt_d500: score -4.50436, gates 6/6'
+- 'gjrx_range_evt_d1000: score -4.50138, gates 6/6'
+- 'gjrx_vix_evt_m1000: score -4.53645, gates 5/6'
+- 'gjr_evt_m1000: score -4.50364, gates 5/6'
+- 'har_range_evt_m1000: score -4.47200, gates 5/6'
+- 'asset_fhs_evt_m1000: score -4.50445, gates 4/6'
+- 'gjr_evt_d1000: score -4.50046, gates 4/6'
+- 'asset_dcc_evt_m1000: score -4.49311, gates 4/6'
+config_sha256: 31e41d241d0faafffb6d829250b435f85bfbed80a59b8c9ba203b40400ac833b
+code_sha256:
+  experiments/crisis_response/models.py: c2c60dda3677b88319361390dc7850b04ba5967a4b5160495dc758f47a727238
+  src/quantedge/garch_x.py: c649072dacb0574a1ddaf547bdbc9ecbfc1a0753f7990f827e814076aaa7dd92
+  src/quantedge/range_vol.py: ce7f7da04d6059786319e329e8848239e59e084382842f1fcc1549bb3cd7e48d
+  src/quantedge/dcc.py: f7c0018625078a525fe91eac686cc705f78616ca41e094bb7218893f480cf9c4
+  src/quantedge/ms_garch.py: 477c411a5cdb9d41433b10497939cd276e74ebfa458138b8d883b7ca05980a79
+  src/quantedge/garch.py: 944958c59b6ae831695c465f18f93c635b1022357f76d450393a2f14ba274811
+  src/quantedge/tail_grid.py: 707155211098a9064f77a11911cdeda48f6cea6f55b2927eb682a32d79338638
+  src/quantedge/evt_extra.py: b280487f3b5cab045667e4ca06d73a9eded687e70f7589a9fd5f699a0aaa1458
+dev_forecasts_sha256: fda74d98a5cf88136eb506668b9f5fc6701d5a4ecccbc3b3cf8ed275d537c89b
+note: Chosen on 2011-2017 only. Do not edit; the test stage checks the config hash.
