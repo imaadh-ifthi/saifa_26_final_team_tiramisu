@@ -107,7 +107,7 @@ def plot_cumulative_wealth(perf_df: pd.DataFrame, notional: float = 10_000_000.0
             x=perf_df["date"],
             y=policy_wealth,
             mode="lines",
-            name="Policy Benchmark (60/40 Equities/Defensive)",
+            name="Policy Benchmark (35% SPY, 10% EFA, 5% EEM, 40% AGG, 10% GLD)",
             line={"color": PALETTE["slate"], "width": 1.8, "dash": "dash"},
             hovertemplate="Benchmark: %{y:$,.0f}<extra></extra>",
         ))
@@ -150,7 +150,7 @@ def plot_drawdowns(perf_df: pd.DataFrame) -> go.Figure:
 
 
 def plot_efficient_frontier(frontier_df: pd.DataFrame, selected_target: float = 0.065) -> go.Figure:
-    """Plot efficient frontier or honest single minimum-variance point if collapsed."""
+    """Plot efficient frontier or honest single minimum-variance point if collapsed (Current Allocation Scope)."""
     fig = go.Figure()
 
     vols = frontier_df["volatility"].values
@@ -165,11 +165,11 @@ def plot_efficient_frontier(frontier_df: pd.DataFrame, selected_target: float = 
             y=[returns[0] * 100.0],
             mode="markers+text",
             marker={"size": 16, "color": PALETTE["teal"], "symbol": "diamond"},
-            text=["Optimal Minimum-Variance Portfolio"],
+            text=["Optimal Constrained Minimum-Variance Portfolio"],
             textposition="top center",
-            name="Minimum Variance Solution",
+            name="Constrained Minimum-Variance Solution",
             hovertemplate=(
-                f"<b>Minimum Variance Solution</b><br>"
+                f"<b>Constrained Minimum-Variance Solution (Current Portfolio Scope)</b><br>"
                 f"Expected Return: {returns[0]*100:.2f}%<br>"
                 f"Annual Volatility: {vols[0]*100:.2f}%<extra></extra>"
             ),
@@ -185,7 +185,7 @@ def plot_efficient_frontier(frontier_df: pd.DataFrame, selected_target: float = 
             hovertemplate="Vol: %{x:.2f}%<br>Exp Return: %{y:.2f}%<extra></extra>",
         ))
 
-    fig = apply_institutional_layout(fig, "Risk-Return Profile & Minimum Variance Solution", height=360)
+    fig = apply_institutional_layout(fig, "Risk-Return Profile & Minimum Variance Solution (Current Allocation Scope)", height=360)
     fig.update_xaxes(title="Annualized Volatility (%)", ticksuffix="%")
     fig.update_yaxes(title="Expected Annual Return (%)", ticksuffix="%")
     return fig
@@ -401,6 +401,7 @@ def plot_risk_contributions_diverging(contributions_df: pd.DataFrame, metric: st
     colors = [PALETTE["red"] if v > 0 else PALETTE["green"] for v in values]
 
     metric_title = "Dollar Component VaR (USD)" if "var" in metric else "Dollar Component ES (USD)"
+    component_type = "Component VaR" if "var" in metric else "Component ES"
 
     fig = go.Figure(data=[
         go.Bar(
@@ -417,7 +418,7 @@ def plot_risk_contributions_diverging(contributions_df: pd.DataFrame, metric: st
     method_title = "Historical Empirical Tail" if "historical" in method else "Parametric Normal (Simple Returns)"
     fig = apply_institutional_layout(
         fig,
-        f"Euler Component Risk Contribution by Position ({method_title}, {int(confidence*100)}% Confidence)",
+        f"Euler {component_type} Risk Contribution by Position ({method_title}, {int(confidence*100)}% Confidence)",
         height=360,
     )
     fig.update_xaxes(title=metric_title, tickformat="$,.0f")

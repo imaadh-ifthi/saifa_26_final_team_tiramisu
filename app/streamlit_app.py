@@ -135,53 +135,90 @@ def main() -> None:
 
         st.markdown("---")
 
+        # Check for discrepancies between config.yaml and saved metadata
+        from app.data_access import check_config_metadata_discrepancies, load_var_forecasts
+        discrepancies = check_config_metadata_discrepancies()
+        if discrepancies:
+            st.warning("⚠️ **Configuration Notice**:\n" + "\n".join(f"• {d}" for d in discrepancies))
+
         # Risk Forecast Controls (Confidence and Methodology)
         st.markdown("#### Risk & Forecast Parameters")
-        selected_confidence = st.select_slider(
-            "Confidence Level:",
-            options=CONFIDENCE_LEVELS,
-            value=0.95,
-            format_func=lambda c: f"{int(c*100)}%",
-            help="Confidence level c for 1-day Value at Risk and Expected Shortfall.",
-        )
+        if page in ("3. Risk Analysis", "4. Model Validation"):
+            def _format_confidence(c: float | str) -> str:
+                try:
+                    s = str(c).replace("%", "").strip()
+                    val = float(s)
+                    if val <= 1.0:
+                        val *= 100.0
+                    return f"{int(round(val))}%"
+                except Exception:
+                    return str(c)
 
-        # Determine available methods for this basis
-        try:
-            summary_for_basis = load_var_summary(selected_basis)
-            available_methods = summary_for_basis["method"].unique().tolist()
-        except Exception:
-            available_methods = ["historical", "parametric_ewma", "monte_carlo_bootstrap"]
+            selected_confidence = st.select_slider(
+                "Confidence Level:",
+                options=CONFIDENCE_LEVELS,
+                value=0.95 if page == "3. Risk Analysis" else 0.99,
+                format_func=_format_confidence,
+                help="Confidence level c for 1-day Value at Risk and Expected Shortfall.",
+                key="global_confidence_slider",
+            )
 
-        method_names = {m: METHOD_LABELS.get(m, m) for m in available_methods}
-        selected_method = st.selectbox(
-            "Primary Risk Methodology:",
-            options=available_methods,
-            index=0,
-            format_func=lambda m: method_names.get(m, m),
-            help="Select forecasting model. Changing methodology filters risk estimates; it does not alter portfolio weights.",
-        )
+            # Determine available methods for this basis
+            try:
+                summary_for_basis = load_var_summary(selected_basis)
+                available_methods = summary_for_basis["method"].unique().tolist()
+            except Exception:
+                available_methods = ["historical", "parametric_ewma", "monte_carlo_bootstrap"]
 
-        # Evaluation Date Filtering (Used especially in Model Validation)
+            method_names = {m: METHOD_LABELS.get(m, m) for m in available_methods}
+            default_idx = 0
+            if "parametric_ewma" in available_methods and page == "4. Model Validation":
+                default_idx = available_methods.index("parametric_ewma")
+
+            selected_method = st.selectbox(
+                "Primary Risk Methodology:",
+                options=available_methods,
+                index=default_idx,
+                format_func=lambda m: method_names.get(m, m),
+                help="Select forecasting model. Changing methodology filters risk estimates; it does not alter portfolio weights.",
+                key="global_method_selector",
+            )
+        else:
+            selected_confidence = 0.95
+            selected_method = "historical"
+            st.caption("ℹ️ *Risk methodology controls apply to Risk Analysis and Model Validation views.*")
+
+        # Evaluation Date Filtering (Used on Model Validation page)
         eval_start_date = None
         eval_end_date = None
         if page == "4. Model Validation":
             st.markdown("---")
             st.markdown("#### OOS Evaluation Window Filter")
+            try:
+                val_forecasts = load_var_forecasts(PortfolioBasis.VALIDATION)
+                oos_min_date = val_forecasts["date"].min().date()
+                oos_max_date = val_forecasts["date"].max().date()
+            except Exception:
+                oos_min_date = pd.to_datetime("2018-01-02").date()
+                oos_max_date = pd.to_datetime("2026-10-20").date()
+
             with st.form("validation_filter_form"):
                 d_start = st.date_input(
                     "Evaluation Start Date:",
-                    value=pd.to_datetime("2018-01-02"),
-                    min_value=pd.to_datetime("2018-01-02"),
-                    max_value=pd.to_datetime("2026-10-20"),
+                    value=oos_min_date,
+                    min_value=oos_min_date,
+                    max_value=oos_max_date,
                 )
                 d_end = st.date_input(
                     "Evaluation End Date:",
-                    value=pd.to_datetime("2026-10-20"),
-                    min_value=pd.to_datetime("2018-01-02"),
-                    max_value=pd.to_datetime("2026-10-20"),
+                    value=oos_max_date,
+                    min_value=oos_min_date,
+                    max_value=oos_max_date,
                 )
                 apply_filter = st.form_submit_button("Apply Evaluation Window")
-                if apply_filter:
+
+                if d_start > d_end:
+                    st.error(f"Reversed window: Start date ({d_start}) cannot be after end date ({d_end}).")
                     eval_start_date = pd.Timestamp(d_start)
                     eval_end_date = pd.Timestamp(d_end)
                 else:
@@ -208,7 +245,7 @@ def main() -> None:
             pass
 
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔄 Reload Results Cache", help="Clears cached tables and reloads output CSV/JSON files from disk."):
+        if st.button("🔄 Reload Results Cache", help="Clears cached tables and reloads output CSV/JSON files from disk.", key="btn_reload_cache"):
             clear_app_cache()
             st.success("Cache cleared! Reloaded analytical outputs.")
             st.rerun()

@@ -55,14 +55,17 @@ def render_assumptions_view() -> None:
             help="Latest date with evaluated one-day forward VaR/ES forecasts (2026-10-20).",
         )
 
-    # Discrepancy Detection Callout
+    # Discrepancy Detection Callout (Dynamically generated)
     missing_assets = {k: v for k, v in cutoffs["missing_by_asset"].items() if v > 0}
     if missing_assets:
-        missing_desc = ", ".join(f"**{k}** ({v} day)" for k, v in missing_assets.items())
+        missing_desc = ", ".join(f"**{k}** ({v} day{'s' if v > 1 else ''})" for k, v in missing_assets.items())
+        all_missing_dates = sorted(set(d for dates in cutoffs.get("missing_dates", {}).values() for d in dates))
+        missing_dates_str = ", ".join(f"**{d}**" for d in all_missing_dates) if all_missing_dates else "the detected dates"
+        latest_complete_date = format_date(cutoffs["latest_return_date"])
         render_callout(
-            f"**Data Discrepancy Detected**: {missing_desc} missing on **2026-10-21**. "
-            "Because percentage returns require consecutive trading day pairs, missing prices on October 21 also make October 22 returns incomplete. "
-            "Consequently, portfolio-level analysis terminates cleanly on **2026-10-20** without forward-filling.",
+            f"**Data Discrepancy Detected**: {missing_desc} missing on {missing_dates_str}. "
+            "Because percentage return calculations require consecutive trading day pairs, missing prices on any date make subsequent returns incomplete. "
+            f"Consequently, portfolio-level analysis terminates cleanly on **{latest_complete_date}** without forward-filling or imputation.",
             level="warning",
         )
 
@@ -136,8 +139,9 @@ def render_assumptions_view() -> None:
         st.dataframe(adf_display[cols_adf].rename(columns={"asset": "Ticker"}), use_container_width=True, hide_index=True)
 
         render_callout(
-            "**Statistical Scope Note**: Rejection of the unit-root null hypothesis confirms mathematical stationarity. "
-            "It does **not** prove that returns are normally distributed, independent, identically distributed, or free from extreme tail risk.",
+            "**Statistical Scope Note**: Rejecting a unit-root null hypothesis provides evidence against a unit root "
+            "under the test's assumptions. It does not prove all forms of stationarity, constant volatility, independence, "
+            "normality, or absence of structural breaks.",
             level="info",
         )
 
@@ -177,3 +181,15 @@ def render_assumptions_view() -> None:
               - Team investment interpretation and fiduciary sign-off must be independently completed by human team members prior to submission.
             """
         )
+
+        st.markdown("---")
+        with st.expander("🔬 Experimental Candidate Models (Development Results Disclosure)"):
+            st.markdown(
+                """
+                **Scope & Provenance Limitation**:
+                - Advanced experiments under `experiments/` explore filtered risk models, GJR-GARCH conditional EVT, and regime-switching crisis responses.
+                - These models were evaluated on the already-inspected 2018–2026 development sample. Their favorable retrospective
+                  diagnostics do **not** constitute independent prospective validation.
+                - Baseline models in the main pipeline are **not** replaced or altered by these candidate experiments.
+                """
+            )

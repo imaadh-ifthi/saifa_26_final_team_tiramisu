@@ -153,20 +153,33 @@ def render_stress_view() -> None:
 
         st.dataframe(h_table[["Ticker", "Asset Description", "Portfolio Weight", "Assumed Shock", "Return Contribution", "P&L Contribution (USD)"]], use_container_width=True, hide_index=True)
 
+        # Verify reconciliation
+        sum_pnl_contrib = float(shock_contribs["pnl_contribution_usd"].sum())
+        pnl_reconciled = np.isclose(sum_pnl_contrib, hypo_pnl, atol=1.0)
+        reconcile_text = (
+            f"✓ Reconciled: Sum of position P&L contributions ({format_currency(sum_pnl_contrib, 0)}) "
+            f"matches total scenario P&L ({format_currency(hypo_pnl, 0)})."
+            if pnl_reconciled
+            else f"⚠️ Discrepancy: Sum of contributions ({format_currency(sum_pnl_contrib, 0)}) does not match scenario total ({format_currency(hypo_pnl, 0)})."
+        )
+        st.caption(reconcile_text)
+
         render_callout(
-            "**Diversification Highlight**: Gold (GLD) provides a positive **+$120,000 P&L buffer** (+8.0% shock on a 15% position), "
-            "partially offsetting severe declines in US equities (SPY -$570k), international equities (EFA -$269k), and fixed income (AGG -$540k).",
-            level="success",
+            "**Scenario Sensitivity Note**: In this assumed scenario, the positive +8.0% gold shock produces a +$120,000 P&L contribution "
+            "that partially cushions severe assumed equity and bond drawdowns. This illustrates scenario sensitivity under the mandate; "
+            "it is an assumed shock rather than proof that gold always hedges stagflation in every historical or future regime.",
+            level="info",
         )
 
     with tab_contributions:
         st.subheader("Euler Marginal & Component Risk Contributions")
         st.caption(
             "Evaluated over the trailing 252-day window (2025-10-20 to 2026-10-20). "
-            "Euler component risk decomposes total portfolio risk such that component contributions sum exactly to portfolio risk."
+            "Euler component risk decomposes total portfolio risk such that component contributions sum exactly to portfolio risk. "
+            "Marginal VaR and ES are dimensionless sensitivity derivatives (∂Risk/∂w_i); Component VaR and ES are denominated in USD."
         )
 
-        c_control1, c_control2 = st.columns(2)
+        c_control1, c_control2, c_control3 = st.columns(3)
         with c_control1:
             contrib_method = st.selectbox(
                 "Risk Contribution Methodology:",
@@ -180,11 +193,17 @@ def render_stress_view() -> None:
                 index=1,
                 format_func=lambda c: f"{int(c*100)}% Confidence",
             )
+        with c_control3:
+            contrib_metric = st.selectbox(
+                "Chart Contribution Metric:",
+                options=["component_var_usd", "component_es_usd"],
+                format_func=lambda m: "Dollar Component VaR (USD)" if m == "component_var_usd" else "Dollar Component ES (USD)",
+            )
 
         # Plot Diverging Horizontal Bar Chart
         fig_rc = plot_risk_contributions_diverging(
             risk_contribs,
-            metric="component_var_usd",
+            metric=contrib_metric,
             confidence=contrib_conf,
             method=contrib_method,
         )
@@ -201,18 +220,18 @@ def render_stress_view() -> None:
             "asset": "Ticker",
             "name": "Description",
             "weight": "Weight",
-            "marginal_var": "Marginal VaR",
+            "marginal_var": "Marginal VaR (∂VaR/∂w)",
             "component_var_usd": "Component VaR (USD)",
             "var_risk_share": "VaR Risk Share",
-            "marginal_es": "Marginal ES",
+            "marginal_es": "Marginal ES (∂ES/∂w)",
             "component_es_usd": "Component ES (USD)",
             "es_risk_share": "ES Risk Share",
         })
         rc_table["Weight"] = rc_table["Weight"].apply(lambda w: format_percent(w, 2))
-        rc_table["Marginal VaR"] = rc_table["Marginal VaR"].apply(lambda m: format_percent(m, 3))
+        rc_table["Marginal VaR (∂VaR/∂w)"] = rc_table["Marginal VaR (∂VaR/∂w)"].apply(lambda m: format_percent(m, 3))
         rc_table["Component VaR (USD)"] = rc_table["Component VaR (USD)"].apply(lambda v: format_currency(v, 0))
         rc_table["VaR Risk Share"] = rc_table["VaR Risk Share"].apply(lambda s: format_percent(s, 2))
-        rc_table["Marginal ES"] = rc_table["Marginal ES"].apply(lambda m: format_percent(m, 3))
+        rc_table["Marginal ES (∂ES/∂w)"] = rc_table["Marginal ES (∂ES/∂w)"].apply(lambda m: format_percent(m, 3))
         rc_table["Component ES (USD)"] = rc_table["Component ES (USD)"].apply(lambda e: format_currency(e, 0))
         rc_table["ES Risk Share"] = rc_table["ES Risk Share"].apply(lambda s: format_percent(s, 2))
 
@@ -224,6 +243,7 @@ def render_stress_view() -> None:
                 """
                 - **Weight vs Risk Share**: An asset's portfolio weight does not equal its risk contribution. For example, **AGG represents 45.0% of portfolio capital**, but contributes a far smaller or even negative share to short-horizon tail risk due to low correlation with equities.
                 - **Preserving Signed Contributions**: Assets with negative marginal risk (such as AGG in certain tail quantiles, or energy XLE during specific periods) act as hedges. **We never discard negative signs or force them into a misleading pie chart.**
+                - **Units of Marginal Quantities**: Marginal VaR and Marginal ES are dimensionless first derivatives representing sensitivity to marginal position expansion. Component quantities represent the dollar allocation of risk and sum to the total portfolio risk.
                 - **Derivative Convention**: Marginal derivatives reflect an unconstrained change in asset exposure. They do not represent a self-financing trade that automatically reduces another asset.
                 """
             )

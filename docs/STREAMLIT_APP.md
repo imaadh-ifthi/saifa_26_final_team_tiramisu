@@ -38,11 +38,13 @@ The application is structured into 6 modular views under `app/views/`:
 
 2. **Portfolio & Performance (`app/views/portfolio.py`)**:
    - Asset allocation donut chart and holdings table (ticker, description, target weight, dollar allocation).
-   - Broad asset class exposures vs mandate bounds (Equity: 40.0% vs max 60.0%; Defensive AGG: 45.0% vs min 35.0%; Gold GLD: 15.0% vs 5–15% bounds).
+   - Broad asset class exposures vs mandate bounds (Equity: 40.0% vs max 60.0%; Defensive exposure defined by backend optimizer as AGG + GLD: 60.0% Current / 52.9% Validation vs min 35.0%; Gold GLD: 15.0% vs 5–15% bounds).
+   - Detailed mandate compliance check table covering all portfolio constraints.
    - Cumulative wealth trajectory ($10M growth) vs Policy Benchmark (35% SPY, 10% EFA, 5% EEM, 40% AGG, 10% GLD).
    - Drawdown (underwater) comparison chart.
    - Complete KPI card suite: Sharpe, Sortino, Treynor, Jensen's Alpha, Information Ratio, Calmar, Beta, and risk-free conventions.
-   - Efficient frontier diagnosis: Explains why targets from 5.0% to 7.5% collapse to the identical minimum-variance solution.
+   - Efficient frontier diagnosis: Explains why targets from 5.0% to 7.5% collapse to the identical constrained minimum-variance solution without drawing a fabricated curve.
+   - Supporting model estimates tab: Expected returns, shrunk covariance matrix, and model-implied correlation matrix.
 
 3. **Risk Analysis (`app/views/risk.py`)**:
    - VaR (loss threshold) vs Expected Shortfall (tail conditional expectation) definition.
@@ -122,3 +124,17 @@ app/
     ├── stress.py           # Crisis replay, stagflation shock, risk contributions view
     └── assumptions.py      # Data governance, cutoffs, ADF, and limitations view
 ```
+
+---
+
+## 6. Testing Suite & Verification
+
+The test suite contains **87 passing automated tests** across analytical backend layers, application data access, scenario validation, and Streamlit `AppTest`:
+
+- `tests/test_analytical_layers.py` (22 tests): Backend ES quadrature, Kupiec POF, Christoffersen independence, Basel traffic light, GPD limits, and full pipeline export consistency.
+- `tests/test_app_data_access.py` (10 tests): Explicit boolean parsing, currency/percent formatting, weight loading, KPI loading, drawdown preservation, data cutoffs, and dynamic backtesting.
+- `tests/test_app_integration.py` (4 tests): Verification that all 15 analytical outputs load cleanly, Plotly figures generate without exceptions, hypothetical stress contributions reconcile, and cache clearing works.
+- `tests/test_app_scenarios.py` (20 tests): Systematic verification of all 20 specific checklist requirements in Section 13 (two-portfolio separation, dollar allocation reconciliation, defensive AGG+GLD definition, benchmark labels, unavailable handling, schema validation, date derivation, window handling, unavailable independence treatment, sequence gap rejection, numerical backtest parity, traffic light rules, breach markers, trace naming, negative risk contributions, collapsed frontiers, and reload mechanics).
+- `tests/test_app_views_apptest.py` (7 tests): Native Streamlit `AppTest` testing that all 6 views render without exception, portfolio basis switches execute cleanly, and sidebar reload button functions properly.
+- `tests/test_crisis_response.py` & `tests/test_layers345_upgrade.py` (24 tests): GJR-GARCH, Garman-Klass, DCC, mixture quantiles, Du-Escanciano, and FZ0 scoring.
+

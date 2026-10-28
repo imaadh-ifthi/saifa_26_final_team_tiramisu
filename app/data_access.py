@@ -68,7 +68,8 @@ def load_analytical_run() -> dict[str, Any]:
 def load_portfolio_weights(basis: PortfolioBasis = PortfolioBasis.CURRENT) -> pd.DataFrame:
     """
     Load portfolio weights with asset metadata and dollar allocations.
-    Validates weight sum equals 1.0 within numerical tolerance.
+    Validates weight sum equals 1.0 within numerical tolerance, finite values,
+    no materially negative weights, and no duplicate assets.
     """
     if basis == PortfolioBasis.CURRENT:
         path = resolve_path("outputs/tables/portfolio_weights.csv")
@@ -79,13 +80,28 @@ def load_portfolio_weights(basis: PortfolioBasis = PortfolioBasis.CURRENT) -> pd
         raise FileNotFoundError(f"Portfolio weights file not found at {path}")
 
     df = pd.read_csv(path)
+    if df.empty:
+        raise ValueError(f"Portfolio weights file at {path} is empty")
     if "asset" not in df.columns or "weight" not in df.columns:
         raise ValueError(f"Portfolio weights CSV must have 'asset' and 'weight' columns. Found {df.columns.tolist()}")
 
-    df["weight"] = df["weight"].astype(float)
+    # Check for duplicate assets
+    if df["asset"].duplicated().any():
+        dups = df["asset"][df["asset"].duplicated()].tolist()
+        raise ValueError(f"Duplicate assets found in portfolio weights: {dups}")
+
+    df["weight"] = pd.to_numeric(df["weight"], errors="coerce")
+    if df["weight"].isna().any():
+        raise ValueError(f"Non-numeric or NaN weights found in {path}")
+
+    # Check for materially negative weights in long-only mandate
+    if (df["weight"] < -1e-6).any():
+        neg_assets = df[df["weight"] < -1e-6][["asset", "weight"]].to_dict(orient="records")
+        raise ValueError(f"Materially negative weights detected in long-only portfolio: {neg_assets}")
+
     total_weight = df["weight"].sum()
     if not np.isclose(total_weight, 1.0, atol=1e-4):
-        raise ValueError(f"Weights do not sum to 1.0 (sum = {total_weight})")
+        raise ValueError(f"Weights do not sum to 1.0 (sum = {total_weight:.6f}). Normalization is prohibited.")
 
     # Add descriptive metadata from schema registry
     df["name"] = df["asset"].map(lambda a: ASSET_REGISTRY[a].name if a in ASSET_REGISTRY else a)
@@ -93,7 +109,7 @@ def load_portfolio_weights(basis: PortfolioBasis = PortfolioBasis.CURRENT) -> pd
     df["category"] = df["asset"].map(lambda a: ASSET_REGISTRY[a].category if a in ASSET_REGISTRY else "Other")
     df["color"] = df["asset"].map(lambda a: ASSET_REGISTRY[a].color if a in ASSET_REGISTRY else "#64748b")
 
-    # Clean display weights (treat microscopic weights < 1e-6 as 0 for display)
+    # Clean display weights (treat microscopic weights < 1e-6 as 0 for display without changing analytical values)
     df["display_weight"] = df["weight"].apply(lambda w: 0.0 if abs(w) < 1e-6 else w)
 
     notional = DEFAULT_NOTIONAL
@@ -114,6 +130,13 @@ def load_expected_returns() -> pd.DataFrame:
     if not path.is_file():
         raise FileNotFoundError(f"Expected returns file not found at {path}")
     df = pd.read_csv(path)
+    if "Ticker" in df.columns:
+        df = df.rename(columns={"Ticker": "asset"})
+    if "expected_return_annual" in df.columns:
+        df = df.rename(columns={"expected_return_annual": "expected_return"})
+    if df.empty or "asset" not in df.columns or "expected_return" not in df.columns:
+        raise ValueError("Expected returns file is empty or missing required columns ('asset', 'expected_return')")
+    df["expected_return"] = pd.to_numeric(df["expected_return"], errors="coerce")
     return df
 
 
@@ -124,7 +147,21 @@ def load_covariance_matrix() -> pd.DataFrame:
     if not path.is_file():
         raise FileNotFoundError(f"Covariance matrix not found at {path}")
     df = pd.read_csv(path, index_col=0)
-    return df
+    if df.empty:
+        raise ValueError("Covariance matrix file is empty")
+    return df.apply(pd.to_numeric, errors="coerce")
+
+
+@st.cache_data(show_spinner=False)
+def load_model_implied_correlation() -> pd.DataFrame:
+    """Calculate model-implied correlation matrix from the shrunk covariance matrix."""
+    cov_df = load_covariance_matrix()
+    cov = cov_df.to_numpy(dtype=float)
+    d = np.sqrt(np.diag(cov))
+    d[d == 0] = 1e-8
+    corr = cov / np.outer(d, d)
+    np.fill_diagonal(corr, 1.0)
+    return pd.DataFrame(corr, index=cov_df.index, columns=cov_df.columns)
 
 
 @st.cache_data(show_spinner=False)
@@ -382,6 +419,34 @@ def load_data_cutoffs() -> dict[str, Any]:
     }
 
 
+def check_config_metadata_discrepancies() -> list[str]:
+    """
+    Compare current config.yaml settings against saved run metadata
+    (outputs/models/selected_portfolio.json and outputs/models/analytical_run.json).
+    Returns a list of human-readable notices if discrepancies are detected.
+    """
+    notices = []
+    try:
+        cfg = load_config()
+        selected_meta = load_selected_portfolio()
+        cfg_target = cfg.get("portfolio", {}).get("target_return_annual")
+        saved_target = selected_meta.get("target_return_annual")
+        if cfg_target is not None and saved_target is not None and not np.isclose(cfg_target, saved_target, atol=1e-4):
+            notices.append(
+                f"Target return in config.yaml ({cfg_target:.2%}) differs from saved allocation target ({saved_target:.2%})."
+            )
+
+        cfg_val = cfg.get("project", {}).get("portfolio_value_usd")
+        saved_val = selected_meta.get("portfolio_value_usd")
+        if cfg_val is not None and saved_val is not None and not np.isclose(cfg_val, saved_val, atol=1.0):
+            notices.append(
+                f"Portfolio value in config.yaml (${cfg_val:,.0f}) differs from saved run value (${saved_val:,.0f})."
+            )
+    except Exception:
+        pass
+    return notices
+
+
 def recompute_backtest_window(
     forecasts_df: pd.DataFrame,
     start_date: pd.Timestamp | str | None = None,
@@ -393,33 +458,83 @@ def recompute_backtest_window(
     """
     Recompute Kupiec POF, Christoffersen independence, conditional coverage,
     and Basel traffic light on filtered forecast rows using existing backend functions.
+
+    CRITICAL FIX ENFORCED:
+    - Never substitutes zero when independence statistic is unavailable.
+    - If independence test cannot be computed (e.g. 0 exceptions), independence LR,
+      p-value, and joint conditional-coverage LR and p-value remain NaN / unavailable.
+    - Rejects reversed dates and empty windows with explicit human-readable explanations.
+    - Rejects duplicate forecast dates and evaluation sequence gaps.
+    - Strictly enforces a single valid method and confidence level.
     """
     from src.quantedge.backtesting import kupiec_test, christoffersen_test, basel_traffic_light
     from scipy.stats import chi2
 
+    if method is None or confidence is None:
+        return {"error": "A single valid method and confidence level are required for backtesting."}
+
+    # Validate date window boundaries
+    if start_date is not None and end_date is not None:
+        ts_start = pd.Timestamp(start_date)
+        ts_end = pd.Timestamp(end_date)
+        if ts_start > ts_end:
+            return {
+                "error": f"Invalid evaluation window: start date ({ts_start.strftime('%Y-%m-%d')}) "
+                         f"is after end date ({ts_end.strftime('%Y-%m-%d')})."
+            }
+
     filtered = forecasts_df.copy()
+    filtered["date"] = pd.to_datetime(filtered["date"])
     if start_date is not None:
         filtered = filtered[filtered["date"] >= pd.Timestamp(start_date)]
     if end_date is not None:
         filtered = filtered[filtered["date"] <= pd.Timestamp(end_date)]
-    if method is not None:
-        filtered = filtered[filtered["method"] == method]
-    if confidence is not None:
-        filtered = filtered[np.isclose(filtered["confidence"], confidence)]
+
+    filtered = filtered[filtered["method"] == method]
+    filtered = filtered[np.isclose(filtered["confidence"], float(confidence))]
 
     filtered = filtered.sort_values("date").reset_index(drop=True)
     n = len(filtered)
     if n == 0:
-        return {"error": "No forecast observations in selected window"}
+        return {"error": "No forecast observations found in selected window."}
+
+    # Check for duplicate dates
+    if filtered["date"].duplicated().any():
+        dups = filtered["date"][filtered["date"].duplicated()].tolist()
+        raise ValueError(f"Duplicate forecast dates within model/confidence window: {dups}")
+
+    # Check for evaluation index gaps if present
+    if "evaluation_index" in filtered.columns:
+        diffs = filtered["evaluation_index"].diff().dropna()
+        if (diffs != 1).any():
+            raise ValueError("Backtest evaluation sequence contains gaps across dates.")
 
     hits = filtered["exception"].to_numpy().astype(int)
-    c = confidence if confidence is not None else float(filtered["confidence"].iloc[0])
+    c = float(confidence)
 
     kupiec = kupiec_test(hits, c, significance)
     independent = christoffersen_test(hits, significance)
 
-    lr_cc = kupiec["kupiec_lr"] + (independent["independence_lr"] if np.isfinite(independent["independence_lr"]) else 0.0)
-    p_cc = float(chi2.sf(lr_cc, 2)) if np.isfinite(lr_cc) else np.nan
+    # Clean handling of independence and joint conditional coverage
+    indep_status = independent.get("independence_status", "ok")
+    indep_lr = independent.get("independence_lr", np.nan)
+
+    if indep_status == "ok" and np.isfinite(indep_lr):
+        lr_cc = float(kupiec["kupiec_lr"] + indep_lr)
+        p_cc = float(chi2.sf(lr_cc, 2))
+        cc_reject = p_cc < significance
+        indep_explanation = "Calculated successfully."
+    else:
+        # Zero substitution is strictly removed
+        lr_cc = np.nan
+        p_cc = np.nan
+        cc_reject = None
+        indep_explanation = (
+            "Independence test unavailable due to insufficient transition states "
+            "(e.g., zero exceptions or no consecutive state transitions). "
+            "Joint conditional-coverage test cannot be evaluated."
+        )
+
     traffic = basel_traffic_light(hits, c)
 
     return {
@@ -427,12 +542,13 @@ def recompute_backtest_window(
         "start_date": filtered["date"].min(),
         "end_date": filtered["date"].max(),
         "confidence": c,
-        "method": method or "all",
+        "method": method,
         **kupiec,
         **independent,
+        "independence_explanation": indep_explanation,
         "conditional_coverage_lr": lr_cc,
         "conditional_coverage_p_value": p_cc,
-        "conditional_coverage_reject": p_cc < significance if np.isfinite(p_cc) else None,
+        "conditional_coverage_reject": cc_reject,
         **traffic,
     }
 

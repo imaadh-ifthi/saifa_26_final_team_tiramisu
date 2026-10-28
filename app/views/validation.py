@@ -18,7 +18,7 @@ from app.data_access import (
     recompute_backtest_window,
 )
 from app.charts import plot_validation_breaches
-from app.formatting import format_currency, format_percent, format_date, format_number
+from app.formatting import format_currency, format_percent, format_date, format_number, format_p_value
 from app.schemas import PortfolioBasis, PALETTE, METHOD_LABELS
 
 
@@ -133,7 +133,7 @@ def render_validation_view(
 
     # Detailed Statistical Backtest Cards
     st.subheader("Formal Likelihood-Ratio Hypothesis Tests (5% Significance Level)")
-    s1, s2, s3, s4 = st.columns(4)
+    s1, s2, s3, s4, s5 = st.columns(5)
     with s1:
         st.metric(
             label="Actual Exceptions",
@@ -149,52 +149,77 @@ def render_validation_view(
             help="Realized breach proportion (exceptions / total observations).",
         )
     with s3:
-        kupiec_status = "REJECTS at 5%" if kupiec_reject else "DOES NOT REJECT"
+        kupiec_status = "REJECTS at 5%" if kupiec_reject else "Does not reject at 5%"
         kupiec_color = PALETTE["red"] if kupiec_reject else PALETTE["green"]
         st.markdown(
             f"""
             <div style="background-color: white; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
-                <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Kupiec POF Test (Coverage)</div>
-                <div style="font-size: 1.1rem; font-weight: 700; color: {kupiec_color}; margin: 0.25rem 0;">{kupiec_status}</div>
-                <div style="font-size: 0.78rem; color: {PALETTE['muted']};">LR = {test_results['kupiec_lr']:.2f} | p = {kupiec_p:.4f}</div>
+                <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Kupiec POF (Coverage)</div>
+                <div style="font-size: 1.05rem; font-weight: 700; color: {kupiec_color}; margin: 0.25rem 0;">{kupiec_status}</div>
+                <div style="font-size: 0.78rem; color: {PALETTE['muted']};">LR = {test_results['kupiec_lr']:.2f} | p = {format_p_value(kupiec_p)}</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
     with s4:
-        if indep_status != "ok":
-            indep_text = "INSUFFICIENT TRANSITIONS"
+        if indep_status != "ok" or not np.isfinite(indep_p):
+            indep_text = "UNAVAILABLE"
             indep_color = PALETTE["muted"]
-            indep_sub = "Zero transition counts"
+            indep_sub = "Insufficient transitions"
         else:
-            indep_text = "REJECTS at 5%" if indep_reject else "DOES NOT REJECT"
+            indep_text = "REJECTS at 5%" if indep_reject else "Does not reject at 5%"
             indep_color = PALETTE["red"] if indep_reject else PALETTE["green"]
-            indep_sub = f"LR = {test_results['independence_lr']:.2f} | p = {indep_p:.4f}"
+            indep_sub = f"LR = {test_results['independence_lr']:.2f} | p = {format_p_value(indep_p)}"
         st.markdown(
             f"""
             <div style="background-color: white; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
                 <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Christoffersen Independence</div>
-                <div style="font-size: 1.1rem; font-weight: 700; color: {indep_color}; margin: 0.25rem 0;">{indep_text}</div>
+                <div style="font-size: 1.05rem; font-weight: 700; color: {indep_color}; margin: 0.25rem 0;">{indep_text}</div>
                 <div style="font-size: 0.78rem; color: {PALETTE['muted']};">{indep_sub}</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
+    with s5:
+        if cc_reject is None or not np.isfinite(cc_p):
+            cc_text = "UNAVAILABLE"
+            cc_color = PALETTE["muted"]
+            cc_sub = "Independence required"
+        else:
+            cc_text = "REJECTS at 5%" if cc_reject else "Does not reject at 5%"
+            cc_color = PALETTE["red"] if cc_reject else PALETTE["green"]
+            cc_sub = f"LR = {test_results['conditional_coverage_lr']:.2f} | p = {format_p_value(cc_p)}"
+        st.markdown(
+            f"""
+            <div style="background-color: white; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
+                <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Joint Conditional Coverage</div>
+                <div style="font-size: 1.05rem; font-weight: 700; color: {cc_color}; margin: 0.25rem 0;">{cc_text}</div>
+                <div style="font-size: 0.78rem; color: {PALETTE['muted']};">{cc_sub}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    if indep_status != "ok":
+        render_callout(f"**Statistical Note**: {test_results.get('independence_explanation')}", level="warning")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Full Backtesting Results Across All Methods and Confidences Table
-    st.subheader("Baseline Model Calibration Master Table (Full OOS Sample: 2018–2026)")
+    st.subheader(f"Baseline Model Calibration Master Table (Full Unfiltered Sample: {format_date(full_min_date)} to {format_date(full_max_date)})")
+    if is_filtered_window:
+        st.caption("ℹ️ **Table Scope Notice**: This master table reports baseline results over the complete 2,212-day out-of-sample horizon. The metric cards above reflect your custom filtered date window.")
+
     b_display = baseline_backtests.copy()
     b_display["Method"] = b_display["method"].map(lambda m: METHOD_LABELS.get(m, m))
     b_display["Confidence"] = b_display["confidence"].apply(lambda c: f"{int(c*100)}%")
     b_display["Obs"] = b_display["observations"].apply(lambda o: f"{int(o):,}")
     b_display["Breaches"] = b_display["exceptions"].apply(lambda x: f"{int(x):,}")
     b_display["Breach Rate"] = b_display["exception_rate"].apply(lambda r: format_percent(r, 2))
-    b_display["Kupiec p-val"] = b_display["kupiec_p_value"].apply(lambda p: f"{p:.4f}")
-    b_display["Kupiec Outcome"] = b_display["kupiec_reject"].apply(lambda r: "Reject (5%)" if r else "Pass")
-    b_display["Independence p-val"] = b_display["independence_p_value"].apply(lambda p: f"{p:.4f}" if np.isfinite(p) else "N/A")
-    b_display["Joint CC Outcome"] = b_display["conditional_coverage_reject"].apply(lambda r: "Reject (5%)" if r else "Pass")
+    b_display["Kupiec p-val"] = b_display["kupiec_p_value"].apply(lambda p: format_p_value(p))
+    b_display["Kupiec Outcome"] = b_display["kupiec_reject"].apply(lambda r: "Rejects at 5%" if r else "Does not reject at 5%")
+    b_display["Independence p-val"] = b_display["independence_p_value"].apply(lambda p: format_p_value(p) if np.isfinite(p) else "Unavailable")
+    b_display["Joint CC Outcome"] = b_display["conditional_coverage_reject"].apply(lambda r: "Rejects at 5%" if r else ("Does not reject at 5%" if r is not None else "Unavailable"))
     b_display["Basel Zone"] = b_display["traffic_light"].apply(lambda t: t.upper())
 
     master_cols = [
@@ -220,8 +245,8 @@ def render_validation_view(
             <div style="font-size: 0.92rem; color: {PALETTE['navy']}; line-height: 1.55;">
                 <p><b>Why does the Basel Traffic Light show 'GREEN' while formal tests REJECT at 99%?</b></p>
                 <ul>
-                    <li><b>Different Time Horizons</b>: The Basel Traffic Light evaluates <i>only the most recent 250 trading days</i> (late 2025 to late 2026). During this recent period of lower equity volatility, only 1–4 breaches occurred across models, putting all models into the regulatory Green Zone.</li>
-                    <li><b>Multi-Year Volatility Clusters</b>: Over the full 2,212 out-of-sample days (which include the massive market turbulence of the COVID-19 crash in March 2020 and the 2022 interest rate shock), exceptions clustered heavily.</li>
+                    <li><b>Different Time Horizons</b>: The legacy Basel Traffic Light evaluates <i>only the most recent 250 trading days</i> (late 2025 to late 2026). During this recent period of lower equity volatility, only 1–4 breaches occurred across models, putting all models into the regulatory Green Zone.</li>
+                    <li><b>Multi-Year Volatility Clusters</b>: Over the full 2,212 out-of-sample days (which include the massive market turbulence of the COVID-19 crash in March 2020 and the 2022 interest rate shock), exceptions clustered heavily. Excess breach frequency and breach clustering are distinct statistical failures.</li>
                     <li><b>Statistical Calibration Failure</b>: Over 2,212 days at 99% confidence, we expect ~22 exceptions. Historical had 38, Monte Carlo 32, EVT 31, and EWMA Normal had 48. Because these breaches occurred in tight clusters rather than independently spaced occurrences, the joint conditional coverage test <b>rejects all four baseline models at 99%</b>.</li>
                     <li><b>Takeaway for the Investment Committee</b>: A recent green traffic light does <i>not</i> mean the risk model is mathematically proven or immune to tail risk. The endowment must maintain substantial defensive reserves and supplement daily VaR with stress testing.</li>
                 </ul>

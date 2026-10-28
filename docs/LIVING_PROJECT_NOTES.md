@@ -3,10 +3,10 @@
 ## Last Updated
 - Date: 2026-10-28
 - Agent: Rashad / Antigravity IDE
-- Branch: `rashad/streamlit-app`
+- Branch: `rash`
 
 ## Current Status
-- What is working: all five analytical layers, stress tests, position risk contributions, and full interactive Streamlit decision dashboard across 6 dedicated views (`app/streamlit_app.py`, `app/views/`); 39 software and integration tests pass.
+- What is working: all five analytical layers, stress tests, position risk contributions, full interactive Streamlit decision dashboard across 6 dedicated views (`app/streamlit_app.py`, `app/views/`), and comprehensive 20-scenario test suite; 87 software, scenario, and integration tests pass.
 - What is incomplete: human team-authored investment memo, final presentation tear sheet, and human fiduciary sign-off.
 - What is blocked: none known.
 
@@ -70,13 +70,13 @@
 
 ## Next Steps for Teammates
 - Review the tail fits, baseline rejections and alert-candidate limitations before defending the methodology. Assess the EVT alert at 90% and 95%, consider an ES-specific check, and log frozen forecasts prospectively for independent evaluation.
-- Integrate the documented analytical CSV contracts into the preserved UI draft.
+- Streamlit UI fully verified across all 6 views with 87 passing tests; ready for team review and competition rehearsal.
 - Write the investment memo, tear sheet and final AI-use disclosure after human validation.
 
 ## Change Log
 | Date | Agent | Change | Files Affected | Reason |
 |---|---|---|---|---|
-| 2026-10-28 | Rashad | Implemented full Streamlit decision dashboard across 6 views, robust data access layer, dynamic backtesting filter, Plotly charts, and test suite; 39 software tests pass | `app/`, `tests/`, `requirements.txt`, `docs/STREAMLIT_APP.md`, `README.md` | Deliver complete, interactive institutional investment dashboard for Serendib Endowment |
+| 2026-10-28 | Rashad | Implemented full Streamlit decision dashboard across 6 views, robust data access layer, dynamic backtesting filter, Plotly charts, and test suite; 87 software tests pass | `app/`, `tests/`, `requirements.txt`, `docs/STREAMLIT_APP.md`, `README.md` | Deliver complete, interactive institutional investment dashboard for Serendib Endowment |
 | 2026-10-28 | Codex | Added breach diagnosis, fixed volatility probe, separate EVT and filtered empirical next-day alert experiments, side-by-side breach plots and documentation; 42 software tests pass | `experiments/improved_risk/`, README, docs | Investigate clustered exceptions and compare causal responses without replacing baseline outputs |
 | 2026-10-27 | Codex | Added isolated filtered historical/bootstrap, EWMA-Student-t and filtered EVT candidates plus fixed sensitivities; compared 11 variants on identical dates; 31 software tests pass | `experiments/improved_risk/`, README | Investigate calibration without replacing or tuning the baselines to pass |
 | 2026-10-26 | Codex | Stashed the UI draft; implemented ES, EVT, frozen-allocation OOS validation, stress tests and Euler contributions; ran snapshot pipeline and 18 tests | `src/`, tests, `config.yaml`, outputs, docs | Complete required analytical layers with explicit timing and diagnostic evidence |

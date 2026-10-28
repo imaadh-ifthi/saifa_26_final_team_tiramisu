@@ -67,3 +67,16 @@ def format_date(value) -> str:
         return value.strftime("%Y-%m-%d")
     s = str(value).split("T")[0].split(" ")[0]
     return s
+
+
+def format_p_value(value: float | None, decimals: int = 4) -> str:
+    """Format p-value avoiding rounding small nonzero values to exact zero."""
+    if value is None or (isinstance(value, (float, np.floating)) and not np.isfinite(value)):
+        return "N/A"
+    val = float(value)
+    if val <= 0.0:
+        return "0.0000"
+    thresh = 10.0 ** (-decimals)
+    if val < thresh:
+        return f"<{thresh:.{decimals}f}"
+    return f"{val:.{decimals}f}"

@@ -74,45 +74,45 @@ def render_risk_view(
 
     if not matching_summary.empty:
         curr_row = matching_summary.iloc[0]
-        v_pct = float(curr_row["latest_var_pct"])
-        v_usd = float(curr_row["latest_var_usd"])
-        e_pct = float(curr_row["latest_es_pct"])
-        e_usd = float(curr_row["latest_es_usd"])
+        v_pct = float(curr_row["latest_var_pct"]) if pd.notna(curr_row.get("latest_var_pct")) else None
+        v_usd = float(curr_row["latest_var_usd"]) if pd.notna(curr_row.get("latest_var_usd")) else None
+        e_pct = float(curr_row["latest_es_pct"]) if pd.notna(curr_row.get("latest_es_pct")) else None
+        e_usd = float(curr_row["latest_es_usd"]) if pd.notna(curr_row.get("latest_es_usd")) else None
         eval_date = curr_row["latest_date"]
     else:
-        v_pct = v_usd = e_pct = e_usd = 0.0
+        v_pct = v_usd = e_pct = e_usd = None
         eval_date = latest_common_date
 
-    st.markdown(f"### Latest 1-Day Loss Forecasts ({format_date(eval_date)})")
+    st.markdown(f"### Latest Evaluated 1-Day Loss Forecasts ({format_date(eval_date)})")
     st.caption(
-        f"Forecast for **{format_date(eval_date)}**, estimated using market information through preceding trading day. "
-        f"Horizon: 1 Trading Day | Reference Notional: {format_currency(notional, 0)}"
+        f"Evaluated forecast for trading day **{format_date(eval_date)}**, estimated using market information through the preceding close. "
+        f"Horizon: 1 Trading Day | Reference Notional: {format_currency(notional, 0)}. *Note: This is the latest evaluated forecast in the saved run; it is not a live forecast for tomorrow.*"
     )
 
     m1, m2, m3, m4 = st.columns(4)
     with m1:
         st.metric(
             label=f"1-Day VaR ({int(selected_confidence*100)}% Conf.)",
-            value=format_currency(v_usd, 0),
-            help=f"Dollar loss expected to be exceeded on only {format_percent(1 - selected_confidence, 0)} of trading days.",
+            value=format_currency(v_usd, 0) if v_usd is not None else "Unavailable",
+            help="Dollar loss threshold expected to be exceeded on only (1 - c) of trading days under model assumptions.",
         )
     with m2:
         st.metric(
             label="VaR (% of Portfolio)",
-            value=format_percent(v_pct, 2),
-            help="Loss as a percentage of total portfolio value.",
+            value=format_percent(v_pct, 2) if v_pct is not None else "Unavailable",
+            help="Estimated loss quantile as a percentage of total portfolio value. VaR is an estimated quantile, not a guaranteed maximum loss.",
         )
     with m3:
         st.metric(
             label=f"Expected Shortfall ({int(selected_confidence*100)}%)",
-            value=format_currency(e_usd, 0),
-            help="Average dollar loss within the worst (1 - c) tail of outcomes.",
+            value=format_currency(e_usd, 0) if e_usd is not None else "Unavailable",
+            help="Expected loss conditional on exceeding the VaR threshold (average tail loss).",
         )
     with m4:
         st.metric(
             label="ES (% of Portfolio)",
-            value=format_percent(e_pct, 2),
-            help="Expected loss as a percentage of total portfolio value within the extreme tail.",
+            value=format_percent(e_pct, 2) if e_pct is not None else "Unavailable",
+            help="Expected loss percentage of total portfolio value within the extreme tail.",
         )
 
     st.markdown("---")
@@ -122,12 +122,12 @@ def render_risk_view(
 
     comp_df = summary_df[np.isclose(summary_df["confidence"], selected_confidence)].copy()
     comp_df["Methodology"] = comp_df["method"].map(lambda m: METHOD_LABELS.get(m, m))
-    comp_df["1-Day VaR (%)"] = comp_df["latest_var_pct"].apply(lambda v: format_percent(v, 2))
-    comp_df["1-Day VaR (USD)"] = comp_df["latest_var_usd"].apply(lambda v: format_currency(v, 0))
-    comp_df["Expected Shortfall (%)"] = comp_df["latest_es_pct"].apply(lambda e: format_percent(e, 2))
-    comp_df["Expected Shortfall (USD)"] = comp_df["latest_es_usd"].apply(lambda e: format_currency(e, 0))
-    comp_df["Historical Exceptions"] = comp_df["number_of_exceptions"].apply(lambda x: f"{int(x):,}")
-    comp_df["Evaluated Days"] = comp_df["observations"].apply(lambda o: f"{int(o):,}")
+    comp_df["1-Day VaR (%)"] = comp_df["latest_var_pct"].apply(lambda v: format_percent(v, 2) if pd.notna(v) else "Unavailable")
+    comp_df["1-Day VaR (USD)"] = comp_df["latest_var_usd"].apply(lambda v: format_currency(v, 0) if pd.notna(v) else "Unavailable")
+    comp_df["Expected Shortfall (%)"] = comp_df["latest_es_pct"].apply(lambda e: format_percent(e, 2) if pd.notna(e) else "Unavailable")
+    comp_df["Expected Shortfall (USD)"] = comp_df["latest_es_usd"].apply(lambda e: format_currency(e, 0) if pd.notna(e) else "Unavailable")
+    comp_df["Historical Exceptions"] = comp_df["number_of_exceptions"].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "Unavailable")
+    comp_df["Evaluated Days"] = comp_df["observations"].apply(lambda o: f"{int(o):,}" if pd.notna(o) else "Unavailable")
 
     table_cols = [
         "Methodology",
@@ -143,7 +143,7 @@ def render_risk_view(
     # Disclosure regarding EVT availability on Current vs Validation portfolio
     if selected_basis == PortfolioBasis.CURRENT:
         render_callout(
-            "**EVT Model Availability Notice**: Extreme Value Theory (EVT-GPD) is calibrated strictly for the "
+            "**EVT Model Scope Notice**: Extreme Value Theory (EVT-GPD) is calibrated strictly for the "
             "**Frozen validation portfolio** across 1,000-day rolling windows (outputs/tables/risk_summary_oos.csv). "
             "To view EVT tail fits alongside baseline methods, select the **'Frozen validation portfolio'** basis in the sidebar.",
             level="info",
@@ -165,12 +165,25 @@ def render_risk_view(
             st.warning(f"Selected method '{selected_method}' is not available in the {selected_basis.value} dataset.")
 
     with tab_chart_bar:
-        st.subheader("Cross-Methodology Loss Comparison at Latest Date")
-        fig_bar = plot_var_method_comparison_bar(summary_df, selected_confidence)
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.subheader(f"Cross-Methodology Loss Comparison at Shared Date ({format_date(latest_common_date)})")
+        # Ensure all methods share the latest evaluation date
+        shared_date_mask = summary_df["latest_date"] == latest_common_date
+        if shared_date_mask.all():
+            fig_bar = plot_var_method_comparison_bar(summary_df, selected_confidence)
+            st.plotly_chart(fig_bar, use_container_width=True)
+        else:
+            st.caption(f"Comparing methods aligned on common date **{format_date(latest_common_date)}**.")
+            aligned_summary = summary_df[shared_date_mask].copy()
+            fig_bar = plot_var_method_comparison_bar(aligned_summary, selected_confidence)
+            st.plotly_chart(fig_bar, use_container_width=True)
 
     with tab_evt:
-        st.subheader("Extreme Value Theory (EVT-GPD) Tail Fits")
+        st.subheader("Extreme Value Theory (EVT-GPD) Tail Diagnostics")
+        render_callout(
+            "**Portfolio Basis Disclosure**: EVT-GPD is calibrated on the **Frozen Validation Portfolio** "
+            "(2018–2026 forward evaluation). Diagnostics reflect rolling 1,000-day standard-loss residual fits.",
+            level="info",
+        )
         evt_df = load_evt_diagnostics()
         if not evt_df.empty:
             st.markdown(
@@ -201,12 +214,20 @@ def render_risk_view(
             })
             st.dataframe(d_display, use_container_width=True, hide_index=True)
 
-            warnings_count = int(evt_df["selection_status"].eq("warning_no_stable_threshold").sum())
-            if warnings_count > 0:
+            # Count distinct refit dates with warning status
+            total_refit_dates = int(evt_df["fit_date"].nunique())
+            warning_refit_dates = int(evt_df[evt_df["selection_status"] == "warning_no_stable_threshold"]["fit_date"].nunique())
+            if warning_refit_dates > 0:
                 render_callout(
-                    f"**EVT Fit Warning**: {warnings_count} candidate fits used the lowest-KS fallback because no threshold "
-                    "met the strict shape/scale stability criteria. This heuristic requires analytical review.",
+                    f"**EVT Fit Warning**: {warning_refit_dates} of {total_refit_dates} distinct refit events triggered the "
+                    "lowest-KS fallback heuristic because no threshold satisfied the strict shape/scale stability criterion. "
+                    "This diagnostic heuristic requires analytical review.",
                     level="warning",
+                )
+            else:
+                render_callout(
+                    f"**EVT Stability Check**: All {total_refit_dates} refit events met shape/scale stability criteria without fallback.",
+                    level="success",
                 )
         else:
             st.info("EVT diagnostics table is available for the Out-of-Sample validation run.")

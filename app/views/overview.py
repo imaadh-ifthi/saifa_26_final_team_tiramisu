@@ -1,6 +1,7 @@
 """Executive Overview page for the Serendib University Endowment Fund."""
 from __future__ import annotations
 import streamlit as st
+import numpy as np
 import pandas as pd
 
 from app.components import render_header, render_callout, render_basis_badge
@@ -8,6 +9,8 @@ from app.data_access import (
     load_selected_portfolio,
     load_portfolio_weights,
     load_kpi_summary,
+    load_var_summary,
+    load_backtest_results,
     load_data_cutoffs,
     load_config,
 )
@@ -155,14 +158,51 @@ def render_overview_view() -> None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # What these results mean section
+    # What these results mean section - calculated dynamically from data
     st.subheader("What These Results Mean for the Endowment")
+
+    from app.data_access import load_var_summary, load_backtest_results
+
+    # Dynamic asset allocations
+    agg_w = float(weights_df.loc[weights_df["asset"] == "AGG", "weight"].sum()) if "AGG" in weights_df["asset"].values else 0.0
+    gld_w = float(weights_df.loc[weights_df["asset"] == "GLD", "weight"].sum()) if "GLD" in weights_df["asset"].values else 0.0
+    defensive_w = agg_w + gld_w
+    equity_assets = ["SPY", "EFA", "EEM", "XLE", "XLK"]
+    equity_w = float(weights_df[weights_df["asset"].isin(equity_assets)]["weight"].sum())
+
+    # Detail active equity holdings
+    eq_details = ", ".join(
+        f"{row.asset} {format_percent(row.weight, 1)}"
+        for row in weights_df[(weights_df["asset"].isin(equity_assets)) & (weights_df["weight"] > 1e-4)].itertuples()
+    )
+
+    # Risk metrics from var_summary
+    var_sum = load_var_summary(PortfolioBasis.CURRENT)
+    h95 = var_sum[(var_sum["method"] == "historical") & np.isclose(var_sum["confidence"], 0.95)]
+    var_95_str = (
+        f"{format_currency(float(h95['latest_var_usd'].iloc[0]), 0)} ({format_percent(float(h95['latest_var_pct'].iloc[0]), 2)})"
+        if not h95.empty
+        else "Unavailable"
+    )
+    es_95_str = (
+        f"{format_currency(float(h95['latest_es_usd'].iloc[0]), 0)} ({format_percent(float(h95['latest_es_pct'].iloc[0]), 2)})"
+        if not h95.empty
+        else "Unavailable"
+    )
+
+    # Backtest summary
+    backtests_df = load_backtest_results()
+    cc_99 = backtests_df[np.isclose(backtests_df["confidence"], 0.99)]
+    n_models_99 = len(cc_99)
+    n_rejected_99 = int(cc_99["conditional_coverage_reject"].sum()) if not cc_99.empty else 0
+    oos_obs = int(cc_99["observations"].iloc[0]) if not cc_99.empty else 0
+
     st.markdown(
-        """
-        - **Asset Allocation Profile**: The proposed portfolio allocates **45.0%** to investment-grade fixed income (AGG) and **15.0%** to gold (GLD), establishing a **60.0% defensive and real-asset buffer**. The remaining **40.0%** is invested across equities (SPY 22.8%, EFA 9.6%, XLK 6.3%, XLE 1.3%).
-        - **Return vs. Target**: The portfolio achieves an estimated forward return of **7.66%**, meeting and exceeding the university's 6.50% return requirement, while minimizing annual portfolio variance to **8.57%**.
-        - **Risk & Capital Preservation**: Retrospective 1-day Value at Risk (95%) stands at **$96,938 (0.97%)**, and Expected Shortfall at **$133,231 (1.33%)**. In historical crisis replays, the portfolio experienced a maximum drawdown of **-24.8%** during the 2008 Financial Crisis, recovering faster than pure equity allocations.
-        - **Model Validation Findings**: Formal out-of-sample testing on 2,212 post-2018 trading days shows that while recent 250-day windows earn a **Green Basel traffic light**, statistical tests over the full multi-year horizon reject conditional coverage at 99%, demonstrating that extreme tails remain fatter than thin-tailed parametric models predict.
+        f"""
+        - **Asset Allocation Profile**: The proposed portfolio allocates **{format_percent(agg_w, 1)}** to investment-grade fixed income (AGG) and **{format_percent(gld_w, 1)}** to gold (GLD), establishing a combined **{format_percent(defensive_w, 1)} defensive exposure** (AGG + GLD). Equity exposure is constrained to **{format_percent(equity_w, 1)}** across active holdings ({eq_details}).
+        - **Model Estimates vs. Target**: The model estimates an annual forward return of **{format_percent(expected_return, 2)}** against the **{format_percent(target_return, 2)}** target return constraint, with an estimated annual portfolio volatility of **{format_percent(optimizer_vol, 2)}**. *Note: Forward returns are model estimates based on historical/CAPM shrinkage priors and are not guaranteed; volatility measures return dispersion, not variance.*
+        - **Historical Replay & Capital Preservation**: Retrospective replay across the full {int(kpi_summary.get('observations', 0)):,} historical trading days generated a compound annual return of **{format_percent(realized_return, 2)}** with an annualized realized volatility of **{format_percent(realized_vol, 2)}** and a maximum peak-to-trough drawdown of **{format_percent(max_dd, 2)}**. Latest evaluated 1-day 95% Historical VaR is **{var_95_str}** and Expected Shortfall is **{es_95_str}**. *Note: Capital preservation is an investment mandate objective, not a capital guarantee.*
+        - **Risk Model Validation Status**: Formal out-of-sample backtesting on {oos_obs:,} trading days (2018–2026) reveals that at 99% confidence, **{n_rejected_99} of {n_models_99} baseline models reject joint conditional coverage at the 5% significance level**. While trailing 250-day windows register in the Green Basel zone during recent calm markets, multi-year crisis clusters (e.g. March 2020 and 2022 rate shocks) demonstrate that empirical market tails are fatter and more clustered than thin-tailed models assume. Statistical non-rejection in calm periods is not proof that a risk model is valid.
         """
     )
 
