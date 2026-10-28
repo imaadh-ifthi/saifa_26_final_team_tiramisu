@@ -1,0 +1,9 @@
+method,observations,breaches,adjacent_breaches,average_var_usd,episodes,largest_episode
+evt_gpd,2212,31,5,178777.59040099473,17,9
+ewma_student_t,2212,39,3,156146.9839465404,29,3
+filtered_bootstrap,2212,29,3,189795.0203552489,22,3
+filtered_evt,2212,31,3,185185.1235912893,23,3
+filtered_historical,2212,29,3,185946.51890868082,22,3
+historical,2212,38,4,180746.7237300082,24,5
+monte_carlo_bootstrap,2212,32,4,189635.48378320577,18,5
+parametric_ewma,2212,48,3,144181.640505927,36,3

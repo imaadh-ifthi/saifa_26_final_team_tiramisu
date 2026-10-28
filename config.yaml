@@ -8,7 +8,7 @@ data:
   fred_risk_free_series: DGS3MO
   cache_raw_data: true
 estimation:
-  core_start_date: "2010-01-01"
+  core_start_date: "2007-01-01"
   trading_days_per_year: 252
   expected_return_shrinkage_to_prior: 0.5
   covariance_shrinkage: 0.25
@@ -31,6 +31,31 @@ var:
   ewma_lambda: 0.94
   monte_carlo_simulations: 10000
   monte_carlo_window: 252
+  ewma_min_periods: 60
+validation:
+  train_start: "2007-01-01"
+  train_end: "2017-12-31"
+  test_start: "2018-01-01"
+  test_end: null
+  min_train_observations: 504
+  significance: 0.05
+evt:
+  window: 1000
+  refit_every: 21
+  threshold_quantiles: [0.85, 0.90, 0.925, 0.95]
+  min_exceedances: 50
+  shape_tolerance: 0.15
+  scale_tolerance: 0.25
+stress:
+  rebalance: daily
+  historical:
+    - {name: "GFC 2008", start: "2008-01-01", end: "2009-03-09"}
+    - {name: "COVID crash", start: "2020-02-19", end: "2020-03-23"}
+    - {name: "2022 rate shock", start: "2022-01-01", end: "2022-12-30"}
+  hypothetical:
+    - name: "Stagflation and equity selloff"
+      description: "Assumed simultaneous one-period shocks; a sensitivity scenario, not a forecast."
+      shocks: {SPY: -0.25, EFA: -0.28, EEM: -0.35, AGG: -0.12, GLD: 0.08, XLE: -0.15, XLK: -0.35}
 outputs:
   save_parquet: true
   save_csv: true

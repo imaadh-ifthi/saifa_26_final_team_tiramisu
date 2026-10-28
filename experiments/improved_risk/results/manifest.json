@@ -1,0 +1,219 @@
+{
+  "protocol": "development_comparison_v1",
+  "evaluation_label": "previously_inspected_historical_development_period",
+  "base_configuration": {
+    "project": {
+      "name": "Quant Edge 1.0 - Serendib Endowment",
+      "portfolio_value_usd": 10000000,
+      "seed": 42
+    },
+    "data": {
+      "tickers": [
+        "SPY",
+        "EFA",
+        "EEM",
+        "AGG",
+        "GLD",
+        "XLE",
+        "XLK"
+      ],
+      "start_date": "2007-01-01",
+      "fred_risk_free_series": "DGS3MO",
+      "cache_raw_data": true
+    },
+    "estimation": {
+      "core_start_date": "2007-01-01",
+      "trading_days_per_year": 252,
+      "expected_return_shrinkage_to_prior": 0.5,
+      "covariance_shrinkage": 0.25
+    },
+    "portfolio": {
+      "target_return_annual": 0.065,
+      "target_return_grid": [
+        0.05,
+        0.055,
+        0.06,
+        0.065,
+        0.07,
+        0.075
+      ],
+      "max_equity_exposure": 0.6,
+      "min_defensive_exposure": 0.35,
+      "max_eem": 0.1,
+      "max_xlk": 0.15,
+      "max_xle": 0.1,
+      "gld_bounds": [
+        0.05,
+        0.15
+      ],
+      "max_single_position": 0.45
+    },
+    "benchmarks": {
+      "market_proxy_weights": {
+        "SPY": 0.7,
+        "EFA": 0.2,
+        "EEM": 0.1
+      },
+      "policy_benchmark_weights": {
+        "SPY": 0.35,
+        "EFA": 0.1,
+        "EEM": 0.05,
+        "AGG": 0.4,
+        "GLD": 0.1,
+        "XLE": 0.0,
+        "XLK": 0.0
+      }
+    },
+    "var": {
+      "confidence_levels": [
+        0.9,
+        0.95,
+        0.99
+      ],
+      "historical_window": 252,
+      "ewma_lambda": 0.94,
+      "monte_carlo_simulations": 10000,
+      "monte_carlo_window": 252,
+      "ewma_min_periods": 60
+    },
+    "validation": {
+      "train_start": "2007-01-01",
+      "train_end": "2017-12-31",
+      "test_start": "2018-01-01",
+      "test_end": null,
+      "min_train_observations": 504,
+      "significance": 0.05
+    },
+    "evt": {
+      "window": 1000,
+      "refit_every": 21,
+      "threshold_quantiles": [
+        0.85,
+        0.9,
+        0.925,
+        0.95
+      ],
+      "min_exceedances": 50,
+      "shape_tolerance": 0.15,
+      "scale_tolerance": 0.25
+    },
+    "stress": {
+      "rebalance": "daily",
+      "historical": [
+        {
+          "name": "GFC 2008",
+          "start": "2008-01-01",
+          "end": "2009-03-09"
+        },
+        {
+          "name": "COVID crash",
+          "start": "2020-02-19",
+          "end": "2020-03-23"
+        },
+        {
+          "name": "2022 rate shock",
+          "start": "2022-01-01",
+          "end": "2022-12-30"
+        }
+      ],
+      "hypothetical": [
+        {
+          "name": "Stagflation and equity selloff",
+          "description": "Assumed simultaneous one-period shocks; a sensitivity scenario, not a forecast.",
+          "shocks": {
+            "SPY": -0.25,
+            "EFA": -0.28,
+            "EEM": -0.35,
+            "AGG": -0.12,
+            "GLD": 0.08,
+            "XLE": -0.15,
+            "XLK": -0.35
+          }
+        }
+      ]
+    },
+    "outputs": {
+      "save_parquet": true,
+      "save_csv": true
+    }
+  },
+  "experiment_configuration": {
+    "protocol": "development_comparison_v1",
+    "evaluation_label": "previously_inspected_historical_development_period",
+    "filter": {
+      "ewma_lambda": 0.94,
+      "min_periods": 60,
+      "volatility_floor": 1e-08
+    },
+    "historical_window": 500,
+    "monte_carlo_simulations": 10000,
+    "student_t": {
+      "window": 1000,
+      "refit_every": 21,
+      "df_bounds": [
+        2.1,
+        100.0
+      ]
+    },
+    "evt": {
+      "window": 1000,
+      "refit_every": 21,
+      "threshold_quantiles": [
+        0.85,
+        0.9,
+        0.925,
+        0.95
+      ],
+      "min_exceedances": 50,
+      "shape_tolerance": 0.15,
+      "scale_tolerance": 0.25
+    },
+    "sensitivity": {
+      "raw_historical_windows": [
+        500,
+        1000
+      ],
+      "empirical_quantile_methods": [
+        "inverted_cdf"
+      ]
+    }
+  },
+  "training": {
+    "training_start": "2007-01-04",
+    "training_end": "2017-12-29",
+    "training_observations": 2768,
+    "risk_free_quote_date": "2017-12-29",
+    "risk_free_annual": 0.0139,
+    "target_return_annual": 0.065,
+    "expected_return_annual": 0.06500000000007466,
+    "weights": {
+      "SPY": 0.3208570695600638,
+      "EFA": 1.9836305881713327e-16,
+      "EEM": 0.0,
+      "AGG": 0.3791429304399358,
+      "GLD": 0.15,
+      "XLE": 2.3262139079472995e-16,
+      "XLK": 0.14999999999999997
+    },
+    "rebalancing": "daily_constant_weights_no_costs"
+  },
+  "input_sha256": {
+    "outputs/tables/prices.csv": "4f6241e3b689ab7e126d8bce369593fefceba274291616c5ea09fbba79b0918c",
+    "data/raw/risk_free.csv": "55a96f10af1274beea4881313594e2d1a89b1c8f8ff9833d6e18d4ec94d487ce",
+    "config.yaml": "debdebeb7790240a6c2c8362bef9924938ef5e48015b5e86cebc6978bda6ed25",
+    "C:\\Daniel\\Projects\\saifa_26_final_team_tiramisu\\experiments\\improved_risk\\config.yaml": "e47b14812503d3a1d87ebcb1daf4eafcbf6dd3e351a1547a25f89c2b19a0a470"
+  },
+  "implementation_sha256": {
+    "models.py": "2faaad44504cd06a751df2b1d2867ca97b47b7d93500917de264b686163081c9",
+    "run.py": "e14784246fc37dbcd10fe79fcf554e5589f41a56ab2337c1a6a7098277d66732"
+  },
+  "dependency_versions": {
+    "numpy": "2.4.6",
+    "pandas": "3.0.6",
+    "scipy": "1.17.1",
+    "pyyaml": "6.0.3"
+  },
+  "data_cutoff": "2026-10-20",
+  "selection_policy": "fixed_candidates_no_search_no_automatic_promotion",
+  "status": "complete"
+}

@@ -1,0 +1,5 @@
+family,reference_model,alert_model,observations,reference_breaches,alert_breaches,avoided_breaches,new_breaches,alert_kupiec_p,alert_independence_p,alert_combined_p
+Filtered EVT,filtered_evt_reference,filtered_evt_cusum,2212,31,25,6,0,0.5465844483875255,0.4495313925319072,0.6264712410871983
+Filtered historical,filtered_historical_reference,filtered_historical_alert,2212,29,22,7,0,0.9795236340523196,0.5060536189733966,0.8013651041871077
+"Monte Carlo, filtered",filtered_bootstrap_reference,filtered_bootstrap_alert,2212,29,22,7,0,0.9795236340523196,0.5060536189733966,0.8013651041871077
+"Monte Carlo, raw to alert",monte_carlo_bootstrap,filtered_bootstrap_alert,2212,32,22,19,9,0.9795236340523196,0.5060536189733966,0.8013651041871077

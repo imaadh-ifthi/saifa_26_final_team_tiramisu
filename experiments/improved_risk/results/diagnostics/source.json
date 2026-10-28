@@ -1,0 +1,6 @@
+{
+  "forecast_file": "C:\\Daniel\\Projects\\saifa_26_final_team_tiramisu\\experiments\\improved_risk\\results\\forecasts.csv.gz",
+  "confidence": 0.99,
+  "episode_gap_trading_days": 5,
+  "allocation": "frozen training weights from experiment manifest"
+}

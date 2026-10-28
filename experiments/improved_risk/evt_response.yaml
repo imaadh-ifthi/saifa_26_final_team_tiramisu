@@ -1,0 +1,22 @@
+# Declared before evaluating the 2018-2026 development sample.
+protocol: evt_next_day_response_v1
+confidence: 0.99
+detector:
+  statistic: one_sided_loss_cusum
+  standardized_loss_drift: 1.0
+  threshold_grid_start: 0.5
+  threshold_grid_stop: 8.0
+  threshold_grid_step: 0.25
+  maximum_training_triggers_per_year: 3.0
+  active_forecast_days: 5
+volatility:
+  reference_ewma_lambda: 0.94
+  fast_ewma_lambda: 0.80
+  min_periods: 60
+  floor: 0.00000001
+arms:
+  - raw_evt_reference
+  - raw_evt_daily_scale
+  - raw_evt_daily_scale_cusum
+  - filtered_evt_reference
+  - filtered_evt_cusum

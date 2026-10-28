@@ -2,7 +2,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from .config import load_config
-from .data import load_or_download_prices, download_fred_series
+from .data import load_or_download_prices, download_fred_series, load_fred_csv
 from .cleaning import compute_returns, flag_missing, flag_extreme_returns, adf_report, build_data_quality_report
 from .estimation import annualized_historical_returns, market_proxy_returns, capm_expected_returns, shrink_expected_returns, annualized_covariance, shrink_covariance_toward_diagonal
 from .portfolio import efficient_frontier, optimize_configured
@@ -10,18 +10,22 @@ from .kpis import compute_kpis
 from .var import build_var_suite
 from .exports import save_frame, save_selected_portfolio
 from .utils import ensure_output_dirs, get_logger
+from .analytics import run_analytical_layers, export_analytical_layers
 
 
-def run(config_path: str = "config.yaml") -> None:
+def run(config_path: str = "config.yaml", prices_path: str | None = None,
+        risk_free_path: str | None = None) -> None:
     cfg, root = load_config(config_path), Path.cwd()
     ensure_output_dirs(root)
     log = get_logger()
     tickers = cfg["data"]["tickers"]
-    prices = load_or_download_prices(tickers, cfg["data"]["start_date"], None, cfg["data"]["cache_raw_data"], root)
+    prices = (pd.read_csv(prices_path, index_col=0, parse_dates=True, float_precision="round_trip") if prices_path else
+              load_or_download_prices(tickers, cfg["data"]["start_date"], None, cfg["data"]["cache_raw_data"], root))
     missing_tickers = set(tickers).difference(prices.columns)
     if missing_tickers:
         raise ValueError(f"Price data missing configured tickers: {sorted(missing_tickers)}")
-    rf_series = download_fred_series(cfg["data"]["fred_risk_free_series"], root/"data/raw/risk_free.csv" if cfg["data"]["cache_raw_data"] else None)
+    rf_series = (load_fred_csv(risk_free_path, cfg["data"]["fred_risk_free_series"]) if risk_free_path else
+                 download_fred_series(cfg["data"]["fred_risk_free_series"], root/"data/raw/risk_free.csv" if cfg["data"]["cache_raw_data"] else None))
     log_returns, simple_returns = compute_returns(prices)
     estimation_start = pd.Timestamp(cfg["estimation"]["core_start_date"])
     est_log = log_returns.loc[log_returns.index >= estimation_start]
@@ -52,6 +56,7 @@ def run(config_path: str = "config.yaml") -> None:
     kpis = compute_kpis(portfolio_returns, policy, market_all, risk_free, periods)
     portfolio_log = np.log1p(portfolio_returns)
     var_forecasts, var_summary = build_var_suite(portfolio_log, cfg)
+    analytical_tables, analytical_metadata = run_analytical_layers(simple_returns, rf_series, weights, cfg)
 
     tables, processed = root/"outputs/tables", root/"data/processed"
     missing_flags, outlier_flags = flag_missing(prices), flag_extreme_returns(log_returns)
@@ -61,8 +66,8 @@ def run(config_path: str = "config.yaml") -> None:
         (prices, tables/"prices.csv"), (log_returns, tables/"log_returns.csv"), (simple_returns, tables/"simple_returns.csv"),
         (log_returns, processed/"log_returns.csv"), (simple_returns, processed/"simple_returns.csv"),
         (data_quality, tables/"data_quality_report.csv"), (adf, tables/"adf_report.csv"),
-        (mu.rename("expected_return_annual").to_frame(), tables/"expected_returns.csv"), (sigma, tables/"covariance_matrix.csv"),
-        (frontier, tables/"efficient_frontier.csv"), (weights.rename("weight").to_frame(), tables/"portfolio_weights.csv"),
+        (mu.rename_axis("Ticker").rename("expected_return_annual").to_frame(), tables/"expected_returns.csv"), (sigma.rename_axis("asset"), tables/"covariance_matrix.csv"),
+        (frontier, tables/"efficient_frontier.csv"), (weights.rename_axis("asset").rename("weight").to_frame(), tables/"portfolio_weights.csv"),
         (pd.DataFrame([kpis]), tables/"kpi_summary.csv"), (var_summary, tables/"var_summary.csv"),
         (var_forecasts, tables/"var_forecasts.csv"),
     ]
@@ -70,6 +75,7 @@ def run(config_path: str = "config.yaml") -> None:
         save_frame(frame, path, cfg["outputs"]["save_csv"], cfg["outputs"]["save_parquet"])
     save_frame(pd.DataFrame({"asset": weights.index, "weight": weights.values, "expected_return_annual": mu.reindex(weights.index).values}), tables/"streamlit_portfolio_summary.csv")
     save_frame(var_summary, tables/"streamlit_var_dashboard.csv")
+    export_analytical_layers(analytical_tables, analytical_metadata, cfg, root)
     expected = float(mu.reindex(tickers) @ weights)
     covariance = sigma.reindex(index=tickers, columns=tickers).to_numpy()
     volatility = float(np.sqrt(weights.to_numpy() @ covariance @ weights.to_numpy()))
@@ -83,11 +89,12 @@ def run(config_path: str = "config.yaml") -> None:
         "For a conservative client, compare methods and supplement them with Expected Shortfall and stress analysis. VaR is not a guarantee of maximum loss.\n",
         encoding="utf-8",
     )
-    update_docs(prices, weights, expected, volatility, var_summary, data_quality, adf, selected_target)
+    update_docs(prices, weights, expected, volatility, var_summary, data_quality, adf, selected_target,
+                str(est_simple.index.min().date()))
     log.info("Pipeline complete: target %.3f, expected return %.3f, volatility %.3f", selected_target, expected, volatility)
 
 
-def update_docs(prices: pd.DataFrame, weights: pd.Series, expected: float, volatility: float, var_summary: pd.DataFrame, quality: pd.DataFrame, adf: pd.DataFrame, target: float) -> None:
+def update_docs(prices: pd.DataFrame, weights: pd.Series, expected: float, volatility: float, var_summary: pd.DataFrame, quality: pd.DataFrame, adf: pd.DataFrame, target: float, estimation_start: str) -> None:
     from datetime import date
     today = date.today().isoformat()
     docs = Path("docs")
@@ -109,7 +116,7 @@ def update_docs(prices: pd.DataFrame, weights: pd.Series, expected: float, volat
 
 ## Current Status
 - What is working: config-driven Layers 1 and 2 pipeline.
-- What is incomplete: later Expected Shortfall, EVT, formal backtesting, and dashboard.
+- What is incomplete: production dashboard integration and human investment recommendation.
 - What is blocked: live results require public Yahoo Finance and FRED access.
 
 ## Repository Overview
@@ -132,7 +139,7 @@ def update_docs(prices: pd.DataFrame, weights: pd.Series, expected: float, volat
 
 ## Data Governance
 - Source: Yahoo Finance via yfinance and FRED DGS3MO.
-- Start date: 2007-01-01; estimation begins 2010-01-01.
+- Start date: {prices.index.min().date()}; estimation begins {estimation_start}.
 - Adjusted close used: yes.
 - Calendar alignment: no forward fill; complete rows used for portfolio time series.
 - Missing data treatment: reported; incomplete price rows retained in exports.
@@ -162,8 +169,7 @@ def update_docs(prices: pd.DataFrame, weights: pd.Series, expected: float, volat
 - Issue: VaR is a threshold measure. Impact: it does not describe loss severity beyond the threshold. Proposed fix: add Expected Shortfall and EVT.
 
 ## Next Steps for Teammates
-- Bhaveenthan: extend Expected Shortfall and EVT.
-- Rashad: implement formal VaR backtests.
+- Review ES, EVT threshold diagnostics, OOS backtests and stress outputs described in ANALYTICAL_LAYERS.md.
 - Daniel / Daniru: integrate dashboard outputs.
 
 ## Change Log
@@ -186,15 +192,15 @@ Log returns are used for statistical estimation and VaR. Simple returns are used
 
 > VaR is not a guarantee of maximum loss. It is a probabilistic threshold estimate. Tail events can exceed VaR.
 
-Expected Shortfall is needed to summarize losses beyond the VaR threshold. EVT may improve tail extrapolation, while formal backtesting is required to assess forecast calibration. The current model does not capture fees, taxes, liquidity, trading costs, changing market regimes, or forward-looking shocks. CAPM and covariance estimates are sample-dependent.
+Expected Shortfall, EVT diagnostics, frozen-allocation out-of-sample backtests, stress replay and risk contributions are implemented; see ANALYTICAL_LAYERS.md for definitions and output contracts. The model excludes fees, taxes, liquidity and trading costs. Hypothetical shocks are assumptions rather than forecasts. CAPM and covariance estimates are sample-dependent.
 """, encoding="utf-8")
     (docs/"AGENT_RUN_REPORT.md").write_text(f"""# Agent Run Report
 
 ## Request
-Implement the provided Quant Edge Layers 1 and 2 specification.
+Implement the Quant Edge analytical layers, including ES, EVT, out-of-sample validation, stress testing and risk contributions.
 
 ## Work completed
-- Implemented data access, cleaning, ADF diagnostics, return estimation, constrained optimization, investment KPIs, three VaR methods, exports, and documentation updates.
+- Implemented data access, cleaning, ADF diagnostics, return estimation, constrained optimization, investment KPIs, VaR/ES, EVT threshold diagnostics, formal OOS backtests, stress tests, risk contributions and exports.
 - Created: config, source package, methodology, data governance, living notes, report, tests, app placeholder, and notebook placeholders.
 - Dependencies added: only the packages listed in requirements.txt from the requested specification.
 
@@ -208,15 +214,21 @@ Implement the provided Quant Edge Layers 1 and 2 specification.
 - Tests: run `pytest`.
 
 ## Assumptions made
-- FRED latest DGS3MO rate is treated as a constant for all KPI calculations in the run.
+- Retrospective KPIs use the latest DGS3MO quote; OOS KPIs use as-of historical quotes.
 - All configured tickers are required; absent downloads fail the pipeline.
 - Observations with any missing asset return are omitted for portfolio-level calculations.
 - Historical, CAPM, and diagonal-shrinkage approaches follow the provided specification.
 
 ## Known issues and recommendations
-Refresh the public data before relying on outputs; inspect flagged outliers, infeasible target returns, and exception counts. Add formal backtests, Expected Shortfall, EVT, and stress scenarios before using this as a production risk system. Exclude fees, taxes, liquidity, and transaction costs explicitly when interpreting results.
+Refresh public data before relying on outputs; inspect flagged outliers, infeasible targets, formal backtests and EVT stability warnings. Analytical layers include ES, EVT, OOS validation, stress tests and risk contributions. Review ANALYTICAL_LAYERS.md and acknowledge that fees, taxes, liquidity and transaction costs are excluded.
 """, encoding="utf-8")
 
 
 if __name__ == "__main__":
-    run()
+    import argparse
+    parser = argparse.ArgumentParser(description="Run portfolio construction and all analytical layers")
+    parser.add_argument("--config", default="config.yaml")
+    parser.add_argument("--prices", help="Optional adjusted-close CSV snapshot, avoiding Yahoo download")
+    parser.add_argument("--risk-free", help="Optional FRED CSV snapshot, avoiding FRED download")
+    args = parser.parse_args()
+    run(args.config, args.prices, args.risk_free)

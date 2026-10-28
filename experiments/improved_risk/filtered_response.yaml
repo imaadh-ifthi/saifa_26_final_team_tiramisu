@@ -1,0 +1,7 @@
+# One fixed comparison, declared before running it on the inspected period.
+protocol: filtered_empirical_next_day_response_v1
+reference_alert_protocol: evt_response.yaml
+models: [filtered_historical, filtered_bootstrap]
+confidence_levels: [0.9, 0.95, 0.99]
+response: max_reference_and_fast_ewma_only_while_prior_close_alert_active
+selection_policy: report_all_models_and_confidences_no_automatic_promotion

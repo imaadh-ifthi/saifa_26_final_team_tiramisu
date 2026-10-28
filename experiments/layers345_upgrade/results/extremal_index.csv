@@ -1,0 +1,7 @@
+series,threshold_quantile,extremal_index
+raw portfolio loss,0.95,0.570262904369055
+GJR-GARCH standardised shock,0.95,1.0
+raw portfolio loss,0.975,0.4432693946668748
+GJR-GARCH standardised shock,0.975,0.842669840005244
+raw portfolio loss,0.99,0.4777234646541577
+GJR-GARCH standardised shock,0.99,0.9620189434048431

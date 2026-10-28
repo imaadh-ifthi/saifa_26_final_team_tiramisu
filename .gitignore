@@ -12,6 +12,7 @@ outputs/models/*
 !outputs/tables/*.csv
 !outputs/tables/*.md
 !outputs/models/selected_portfolio.json
+!outputs/models/analytical_run.json
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !outputs/tables/.gitkeep

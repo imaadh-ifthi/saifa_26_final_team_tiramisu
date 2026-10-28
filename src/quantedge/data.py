@@ -6,6 +6,15 @@ import pandas as pd
 import requests
 
 
+def load_fred_csv(path: str | Path, series_id: str = "DGS3MO") -> pd.Series:
+    """Read either a cached series or an original FRED CSV, retaining percent units."""
+    frame = pd.read_csv(path, index_col=0, parse_dates=True, na_values=".")
+    series = pd.to_numeric(frame[series_id], errors="coerce").dropna().sort_index()
+    if series.empty or series.index.has_duplicates or not np.isfinite(series).all():
+        raise ValueError("FRED snapshot must have unique dates and finite numeric observations")
+    return series
+
+
 def download_prices(tickers: list[str], start: str, end: str | None = None, cache_path: Path | None = None) -> pd.DataFrame:
     """Fetch adjusted closes from Yahoo Finance; optionally cache raw source data."""
     try:

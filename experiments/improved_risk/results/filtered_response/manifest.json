@@ -1,0 +1,53 @@
+{
+  "protocol": {
+    "protocol": "filtered_empirical_next_day_response_v1",
+    "reference_alert_protocol": "evt_response.yaml",
+    "models": [
+      "filtered_historical",
+      "filtered_bootstrap"
+    ],
+    "confidence_levels": [
+      0.9,
+      0.95,
+      0.99
+    ],
+    "response": "max_reference_and_fast_ewma_only_while_prior_close_alert_active",
+    "selection_policy": "report_all_models_and_confidences_no_automatic_promotion"
+  },
+  "alert_protocol": {
+    "protocol": "evt_next_day_response_v1",
+    "confidence": 0.99,
+    "detector": {
+      "statistic": "one_sided_loss_cusum",
+      "standardized_loss_drift": 1.0,
+      "threshold_grid_start": 0.5,
+      "threshold_grid_stop": 8.0,
+      "threshold_grid_step": 0.25,
+      "maximum_training_triggers_per_year": 3.0,
+      "active_forecast_days": 5
+    },
+    "volatility": {
+      "reference_ewma_lambda": 0.94,
+      "fast_ewma_lambda": 0.8,
+      "min_periods": 60,
+      "floor": 1e-08
+    },
+    "arms": [
+      "raw_evt_reference",
+      "raw_evt_daily_scale",
+      "raw_evt_daily_scale_cusum",
+      "filtered_evt_reference",
+      "filtered_evt_cusum"
+    ]
+  },
+  "training_only_threshold": 2.0,
+  "training_trigger_count": 26,
+  "training_volatility_days": 2708,
+  "input_sha256": {
+    "C:\\Daniel\\Projects\\saifa_26_final_team_tiramisu\\experiments\\improved_risk\\filtered_response.yaml": "26a0310565b3a63a2b949a16b7b63513a9aed1db8a7fd42c3042baed56b0b801",
+    "C:\\Daniel\\Projects\\saifa_26_final_team_tiramisu\\experiments\\improved_risk\\evt_response.yaml": "3c4176f5a3227417d13b4f182b52a3d087fc33eb10b65ade3b384f937a13de62",
+    "outputs\\tables\\prices.csv": "4f6241e3b689ab7e126d8bce369593fefceba274291616c5ea09fbba79b0918c",
+    "C:\\Daniel\\Projects\\saifa_26_final_team_tiramisu\\experiments\\improved_risk\\results\\forecasts.csv.gz": "514fcb38a0671231d80b151cfd576995e7c2254c34afd51d1a0b10ebe8fc9a9a"
+  },
+  "already_inspected_development_period": true
+}

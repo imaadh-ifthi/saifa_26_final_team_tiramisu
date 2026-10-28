@@ -1,0 +1,23 @@
+# Declared before the first comparison; no parameter search or automatic winner.
+protocol: development_comparison_v1
+evaluation_label: previously_inspected_historical_development_period
+filter:
+  ewma_lambda: 0.94
+  min_periods: 60
+  volatility_floor: 0.00000001
+historical_window: 500
+monte_carlo_simulations: 10000
+student_t:
+  window: 1000
+  refit_every: 21
+  df_bounds: [2.1, 100.0]
+evt:
+  window: 1000
+  refit_every: 21
+  threshold_quantiles: [0.85, 0.90, 0.925, 0.95]
+  min_exceedances: 50
+  shape_tolerance: 0.15
+  scale_tolerance: 0.25
+sensitivity:
+  raw_historical_windows: [500, 1000]
+  empirical_quantile_methods: [inverted_cdf]

@@ -2,16 +2,16 @@
   "portfolio_value_usd": 10000000,
   "target_return_annual": 0.065,
   "weights": {
-    "SPY": 0.23174077928906553,
-    "EFA": 0.11838737912800808,
-    "EEM": 0.013300418592916391,
-    "AGG": 0.44999999999999984,
-    "GLD": 0.15,
-    "XLE": 0.02482508744229004,
-    "XLK": 0.011746335547720015
+    "SPY": 0.22807378821751478,
+    "EFA": 0.0961127229084155,
+    "EEM": 8.239936510889834e-18,
+    "AGG": 0.44999999999999996,
+    "GLD": 0.14999999999999997,
+    "XLE": 0.012714857253651284,
+    "XLK": 0.0630986316204186
   },
-  "expected_return_annual": 0.08022349922807284,
-  "volatility_annual": 0.07573568963647367,
+  "expected_return_annual": 0.07664964535310752,
+  "volatility_annual": 0.08568948810854374,
   "constraints": {
     "target_return_annual": 0.065,
     "target_return_grid": [
@@ -34,9 +34,9 @@
     "max_single_position": 0.45
   },
   "estimation_window": {
-    "start": "2010-01-04",
+    "start": "2007-01-04",
     "end": "2026-10-22",
-    "observations": 4227
+    "observations": 4982
   },
   "notes": "Expected returns blend historical estimates and CAPM; covariance uses diagonal shrinkage."
 }
