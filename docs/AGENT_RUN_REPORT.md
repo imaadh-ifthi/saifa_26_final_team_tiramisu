@@ -29,3 +29,16 @@ Refresh public data before relying on outputs; inspect flagged outliers, infeasi
 ## Subsequent risk-model development (2026-10-28)
 
 This run report describes the original analytical pipeline. Later experiments remain separate under [`experiments/improved_risk/`](../experiments/improved_risk/README.md). With 2007-start training and 2018–2026 evaluation, the unchanged baseline methods still fail joint 99% conditional coverage. Filtered historical + alert and filtered bootstrap + alert each record 22 exceptions; filtered EVT + alert records 25. All three are not rejected by the recorded 99% Kupiec, independence and joint tests on this already-inspected development period. They share one prior-close CUSUM alert and have not replaced the four baseline exports. The [experiment results review](../experiments/improved_risk/RESULTS_REVIEW.md) and [breach plots](../experiments/improved_risk/results/alert_breach_comparison/README.md) give exact scores, dates, forecast-size impact and limitations. The current repository test suite passes 42 tests; this does not independently validate risk forecasts.
+
+## Streamlit Application Implementation (2026-10-28)
+
+- **Agent:** Rashad / Antigravity IDE
+- **Branch:** `rashad/streamlit-app`
+- **Request:** Build the complete interactive Streamlit application for the Serendib Endowment investment proposal.
+- **Work Completed:**
+  - Designed and implemented complete application across 6 views: `app/views/overview.py`, `portfolio.py`, `risk.py`, `validation.py`, `stress.py`, and `assumptions.py`.
+  - Implemented robust data access and validation adapter (`app/data_access.py`), institutional formatting utilities (`app/formatting.py`), domain schemas (`app/schemas.py`), interactive Plotly charts (`app/charts.py`), and reusable UI components (`app/components.py`).
+  - Added dynamic out-of-sample backtest window recomputation calling backend hypothesis test functions (`kupiec_test`, `christoffersen_test`, `basel_traffic_light`).
+  - Implemented 14 new test cases in `tests/test_app_data_access.py` and `tests/test_app_integration.py`. All 39 tests pass.
+  - Successfully launched local server and visually inspected all 6 views with browser automation (`verify_streamlit_app`). Confirmed zero tracebacks, zero errors, clean layout, correct dates, and active filters.
+  - Documented application architecture in `docs/STREAMLIT_APP.md` and updated `README.md` and `docs/LIVING_PROJECT_NOTES.md`.

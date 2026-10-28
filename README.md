@@ -14,11 +14,9 @@ This repository contains the quantitative analysis engine for the Quant Edge 1.0
 
 ## Current Status
 
-The five analytical layers are implemented and export results. The full pipeline has been exercised on saved market prices and public FRED history. The test suite includes baseline and separate experimental-model checks. Passing software tests does not establish that the risk models are well calibrated. With the current 2007-start training allocation, the four unchanged baseline methods record 31 to 48 exceptions in 2,212 evaluation days at 99% VaR; none avoids rejection by the joint conditional-coverage test. Review the current backtest exports and EVT warnings before presenting an investment recommendation.
+The five analytical layers and the full interactive Streamlit dashboard application are implemented, verified, and tested. The application runs locally from pre-computed analytical outputs with `python -m streamlit run app/streamlit_app.py`. The test suite includes 39 passing unit and integration tests covering analytical formulas, data loading, dynamic backtesting, and visualization. With the current 2007-start training allocation, the four unchanged baseline methods record 31 to 48 exceptions in 2,212 evaluation days at 99% VaR; none avoids rejection by the joint conditional-coverage test. Review the current backtest exports and EVT warnings before presenting an investment recommendation.
 
-The current `app/streamlit_placeholder.py` is a placeholder, so this working tree does not yet provide the required interactive Streamlit application. The UI draft is saved locally in the Git stash named `UI draft restored preview - saved again`. A local stash is not included in a normal repository clone.
-
-The eligible universe is SPY, EFA, EEM, AGG, GLD, XLE, and XLK. Weights are determined by the configured constrained target-return minimum-variance optimization.
+The Streamlit application (`app/streamlit_app.py`) provides an institutional decision dashboard with six dedicated views: Executive Overview, Portfolio & Performance, Risk Analysis, Model Validation, Stress Testing & Risk Contributions, and Assumptions & Data Quality. See [docs/STREAMLIT_APP.md](docs/STREAMLIT_APP.md) for full architecture and data contract details.
 
 ## Repository Structure
 
@@ -30,9 +28,9 @@ data/processed/             Return series (ignored by Git)
 outputs/tables/             CSV and Markdown analysis outputs
 outputs/models/             Selected portfolio JSON
 docs/                       Methodology, governance, living notes, run report
-tests/                      Unit tests
-app/                         Streamlit integration placeholder
-notebooks/                   Analysis notebook placeholders
+tests/                      Unit and integration tests
+app/                        Streamlit dashboard (schemas, data_access, charts, views)
+notebooks/                  Analysis notebook placeholders
 ```
 
 ## Setup
