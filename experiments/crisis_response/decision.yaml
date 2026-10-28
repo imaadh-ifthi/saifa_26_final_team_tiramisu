@@ -11,7 +11,11 @@ risk_limits:
   daily_es_limit_pct: 0.020     # 1-day 97.5% ES must stay below 2.0% of the portfolio ($200k)
   stress_loss_tolerance_pct: 0.20   # no stress scenario (peak-to-trough) should lose more than 20%
 
-trade_step: 0.05                # size of each "sell A, buy B" trade in the menu (5% of the portfolio)
+# Risk budget rule: an asset should not carry more than this many times its weight in ES share.
+# Example: 10% of the money and more than 20% of the tail risk gets flagged for trimming.
+max_es_share_per_weight: 2.0
+
+trade_step: 0.05               # size of each "sell A, buy B" trade in the menu (5% of the portfolio)
 
 # Historical crisis paths, replayed with today's weights and daily rebalancing.
 historical_scenarios:

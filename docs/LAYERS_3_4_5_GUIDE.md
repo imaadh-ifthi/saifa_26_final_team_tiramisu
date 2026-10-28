@@ -99,3 +99,84 @@ allocation is about $130k (90% interval $118k to $142k), and 99% ES is about $16
 * **What does the model miss?** Overnight jumps bigger than anything in the last 1,000 days,
   sudden changes in correlation between assets, liquidity and trading costs, and uncertainty
   in the GARCH parameters themselves.
+
+## Crisis-response upgrade: making the model react faster (experiments/crisis_response)
+
+### The problem in one line
+`gjr_evt` passes every test over 2018-2026, but in 2020 it had 8 days at 99% where the loss
+beat VaR, when about 2.5 are expected. The model learns about a crisis only from yesterday's
+closing return, which is a slow and noisy signal.
+
+### What we tried (12 versions, all from published research)
+* **Add the VIX** (the market's "fear gauge") to the GARCH volatility equation. Options traders
+  often react before prices do. This is called GARCH-X.
+* **Add the daily high-low range.** A day can swing 4% and still close flat; the range catches that.
+* **Refit every day** instead of every month, and a **500-day** instead of a **1,000-day** window.
+* **Model each asset separately**, then rebuild the portfolio with today's volatility of each
+  asset. One version also tracks **changing correlations (DCC)**, so it notices when bonds stop
+  protecting us, as in March 2020.
+* **Two regimes** ("calm" and "stressed") with a Markov-switching GARCH.
+
+### How we made sure we weren't fooling ourselves
+1. We wrote the list of models and the rule for picking the winner into a file **first**, and
+   saved it in git.
+2. We picked the winner using **2011-2017 only** (that includes the August 2011 crash). The rule:
+   it has to pass the main backtests, then it needs the lowest FZ0 score (a score for VaR and ES
+   together; lower is better).
+3. We **froze** the winner, with a fingerprint (hash) of the settings, before ever running 2018-2026.
+4. We tested on 2018-2026 **once**. We also show every other model's test numbers, so nobody
+   has to wonder about cherry-picking.
+
+### The winner and what it did
+**`gjrx_vix_evt_d1000`**: GJR-GARCH plus yesterday's VIX, refit every day, with the same EVT
+tail as before.
+
+| 99%, 2018-2026 | New | gjr_evt | Daniel's alert model |
+|---|---:|---:|---:|
+| Breaches (22 expected) | 26 | 26 | 22 |
+| Breaches in all of 2020 | **5** | 8 | 3 |
+| Breaches in the COVID crash (20 Feb-30 Apr) | 3 | 3 | 2 |
+| Average daily VaR | **$161.5k** | $167.1k | $190.5k |
+| Average VaR in calm years | **$139.9k** | $143.6k | $159.1k |
+| FZ0 score (lower is better) | **-3.881** | -3.800 | -3.798 |
+
+How to say it: "Adding the VIX made the model better at the edges of a crisis. In 2020 it cut
+the breaches from 8 to 5, and it uses about $5-6k less risk capital a day on average. It does
+not stop the first days of a crash. No daily model does; even US regulators excluded 6 to 27
+March 2020 for banks."
+
+### Be upfront about the weak spots
+* At 97.5% it has 72 breaches where 55 are expected, so the breach-count test rejects it. The
+  reason: the VIX only measures stock-market fear. In 2022 bonds and stocks fell together on
+  rate hikes while the VIX stayed moderate, so the model was too relaxed. In the very low-VIX
+  years (2023, 2026) it was also a bit too low.
+* Its edge over gjr_evt is real on the score but not significant at 5% (p = 0.06 to 0.08).
+* The asset-level DCC model did best in the crash (1 breach), but it failed our 2011-2017 rule.
+  We didn't switch to it after seeing the test, because that would be cheating. It's the first
+  thing to re-test on new data.
+
+### Likely judge questions on this part
+* **"Didn't you just pick the model that looked best on COVID?"** No. The choice was frozen
+  and committed in git before 2018-2026 was run, and the test script refuses to run if the
+  settings change. The model with the best COVID numbers (asset DCC) is *not* the one we picked.
+* **"Is the VIX a fair input?"** Yes. It's public (FRED VIXCLS), and we only use yesterday's close.
+* **"Which model would you use?"** For the 95% and 97.5% VaR lines, gjr_evt, because it covers
+  better there. For 99% VaR and ES, and as an early-warning view, the VIX model.
+
+## From numbers to decisions (experiments/crisis_response/decision.py)
+
+* **Risk budget.** We split the portfolio's ES into one piece per asset; the pieces add up to
+  the total. Today gold is 15% of the money but about 28% of the tail risk, because it's
+  moving with stocks (correlation 0.32, normally 0.08). XLK is 6% of the money and 16% of the
+  risk, more than twice its weight, so we flag it for trimming. We build these numbers from
+  every daily shock since 2007, re-played at today's volatility and correlation. That makes them
+  steadier than the old 252-day split, which put 51% of ES on gold.
+* **Stress tests** with today's weights: 2008 -24.8%, COVID -16.6%, 2022 -18.0%, and our own
+  scenario "hedge failure", where stocks, bonds and gold are all sold at once, -13.2%.
+  Reverse stress test: the S&P 500 would need to fall about 48% for us to lose 20%.
+* **Trade menu.** Every 5% swap allowed by the mandate, with its effect on ES, the worst stress
+  loss and expected return. Bonds and gold are already at their caps, so no swap gets a 2008
+  repeat below 24.3%.
+* **Memo** (`docs/INVESTMENT_COMMITTEE_MEMO.md`): accept the allocation, but raise the
+  stress-loss limit from 20% to 26%, trim XLK, and keep a daily 97.5% ES limit of $200k. The 2%
+  and 20% limits are our assumptions until the client brief gives its numbers.

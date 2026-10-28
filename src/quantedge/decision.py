@@ -143,6 +143,34 @@ def trade_menu(scen: np.ndarray, weights: pd.Series, limits: dict, expected_retu
     return out
 
 
+def greedy_derisk(weights: pd.Series, limits: dict, stress_fn, step: float = 0.05, target: float = 0.0,
+                  max_steps: int = 12) -> pd.DataFrame:
+    """Keep making the single 5% trade that cuts the worst stress loss most, until we reach target
+    or no allowed trade helps any more. Answers "can we fix this inside the mandate at all?"."""
+    w = weights.copy()
+    path = [{"step": 0, "trade": "start", "worst_stress_loss": stress_fn(w), **{f"w_{a}": w[a] for a in w.index}}]
+    for k in range(1, max_steps + 1):
+        best, best_w = path[-1]["worst_stress_loss"], None
+        for sell, buy in itertools.permutations(w.index, 2):
+            if w[sell] < step - 1e-9:
+                continue
+            trial = w.copy()
+            trial[sell] -= step
+            trial[buy] += step
+            if mandate_breaches(trial, limits):
+                continue
+            s = stress_fn(trial)
+            if s < best - 1e-6:
+                best, best_w, label = s, trial, f"sell {sell}, buy {buy}"
+        if best_w is None:
+            break
+        w = best_w
+        path.append({"step": k, "trade": label, "worst_stress_loss": best, **{f"w_{a}": w[a] for a in w.index}})
+        if best <= target:
+            break
+    return pd.DataFrame(path)
+
+
 def reverse_stress(weights: pd.Series, betas: pd.Series, loss_limit: float) -> float:
     """How big an S&P 500 fall (with every asset moving beta x the S&P move) takes the portfolio to loss_limit.
 
