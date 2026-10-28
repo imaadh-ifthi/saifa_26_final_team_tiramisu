@@ -151,9 +151,9 @@ def render_risk_view(
 
     # Visualizations: Bar comparison & Time Series
     tab_chart_time, tab_chart_bar, tab_evt = st.tabs([
-        "📉 Risk Forecasts Over Time",
-        "📊 Cross-Method Bar Comparison",
-        "🔍 EVT Threshold Diagnostics",
+        "Risk Forecasts Over Time",
+        "Cross-Method Bar Comparison",
+        "EVT Threshold Diagnostics",
     ])
 
     with tab_chart_time:
@@ -233,7 +233,7 @@ def render_risk_view(
             st.info("EVT diagnostics table is available for the Out-of-Sample validation run.")
 
     # Methodology Explanations Expander
-    with st.expander("📘 Risk Methodology Assumptions & Theoretical Framework"):
+    with st.expander("Risk Methodology Assumptions & Theoretical Framework"):
         for m_key, m_desc in METHOD_DESCRIPTIONS.items():
             if m_key in available_methods or m_key == "evt_gpd":
                 st.markdown(f"**{METHOD_LABELS.get(m_key, m_key)}**")

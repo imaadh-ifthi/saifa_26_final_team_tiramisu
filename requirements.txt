@@ -9,4 +9,4 @@ plotly
 pytest
 pyyaml
 pyarrow
-streamlit
+streamlit>=1.66.1,<2

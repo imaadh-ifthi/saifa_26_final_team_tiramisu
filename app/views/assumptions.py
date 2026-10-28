@@ -73,10 +73,10 @@ def render_assumptions_view() -> None:
 
     # Tabs for Governance, Diagnostics, and Limitations
     tab_quality, tab_adf, tab_assumptions, tab_limitations = st.tabs([
-        "🔍 Data Quality Report",
-        "📊 Stationarity Tests (ADF)",
-        "📜 Core Modeling Assumptions",
-        "⚠️ Limitations & AI Disclosure",
+        "Data Quality Report",
+        "Stationarity Tests (ADF)",
+        "Core Modeling Assumptions",
+        "Limitations & AI Disclosure",
     ])
 
     with tab_quality:
@@ -183,7 +183,7 @@ def render_assumptions_view() -> None:
         )
 
         st.markdown("---")
-        with st.expander("🔬 Experimental Candidate Models (Development Results Disclosure)"):
+        with st.expander("Experimental Candidate Models (Development Results Disclosure)"):
             st.markdown(
                 """
                 **Scope & Provenance Limitation**:

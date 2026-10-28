@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from .schemas import PALETTE, ASSET_REGISTRY, METHOD_LABELS
+from .theme import theme_name
 from .formatting import format_currency, format_percent
 
 
@@ -18,6 +19,7 @@ def apply_institutional_layout(fig: go.Figure, title: str = "", height: int = 42
             "x": 0.01,
             "xanchor": "left",
         },
+        template="plotly_dark" if theme_name() == "dark" else "plotly_white",
         paper_bgcolor=PALETTE["card_bg"],
         plot_bgcolor=PALETTE["light_bg"],
         font={"family": "Inter, -apple-system, sans-serif", "color": PALETTE["navy"], "size": 12},
@@ -30,7 +32,7 @@ def apply_institutional_layout(fig: go.Figure, title: str = "", height: int = 42
             "xanchor": "right",
             "x": 1.0,
             "font": {"size": 11},
-            "bgcolor": "rgba(255, 255, 255, 0.8)",
+            "bgcolor": PALETTE["card_bg"],
         },
         hovermode="x unified",
     )
@@ -69,7 +71,7 @@ def plot_allocation_donut(weights_df: pd.DataFrame) -> go.Figure:
             labels=display_df["asset"],
             values=display_df["weight"],
             hole=0.55,
-            marker={"colors": colors, "line": {"color": "#ffffff", "width": 2}},
+            marker={"colors": colors, "line": {"color": PALETTE["card_bg"], "width": 2}},
             textinfo="label+percent",
             hovertext=hover_text,
             hoverinfo="text",
@@ -78,7 +80,9 @@ def plot_allocation_donut(weights_df: pd.DataFrame) -> go.Figure:
         )
     ])
     fig.update_layout(
+        font={"color": PALETTE["navy"]},
         showlegend=True,
+        template="plotly_dark" if theme_name() == "dark" else "plotly_white",
         paper_bgcolor=PALETTE["card_bg"],
         height=360,
         margin={"l": 20, "r": 20, "t": 20, "b": 20},
@@ -352,6 +356,7 @@ def plot_stress_paths(paths_df: pd.DataFrame, scenario_name: str, notional: floa
 
     fig.update_layout(
         height=450,
+        template="plotly_dark" if theme_name() == "dark" else "plotly_white",
         paper_bgcolor=PALETTE["card_bg"],
         font={"family": "Inter, -apple-system, sans-serif", "color": PALETTE["navy"]},
         showlegend=False,

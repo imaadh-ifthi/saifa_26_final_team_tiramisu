@@ -17,13 +17,13 @@ class AssetInfo(NamedTuple):
 
 
 ASSET_REGISTRY: dict[str, AssetInfo] = {
-    "SPY": AssetInfo("SPY", "SPDR S&P 500 ETF Trust", "US Large-Cap Equity", "Equity", "#1e3a8a"),
-    "EFA": AssetInfo("EFA", "iShares MSCI EAFE ETF", "Developed Markets Equity", "Equity", "#2563eb"),
-    "EEM": AssetInfo("EEM", "iShares MSCI Emerging Markets ETF", "Emerging Markets Equity", "Equity", "#3b82f6"),
+    "SPY": AssetInfo("SPY", "SPDR S&P 500 ETF Trust", "US Large-Cap Equity", "Equity", "#5585bd"),
+    "EFA": AssetInfo("EFA", "iShares MSCI EAFE ETF", "Developed Markets Equity", "Equity", "#6987d5"),
+    "EEM": AssetInfo("EEM", "iShares MSCI Emerging Markets ETF", "Emerging Markets Equity", "Equity", "#56a9bf"),
     "AGG": AssetInfo("AGG", "iShares Core U.S. Aggregate Bond ETF", "US Investment Grade Fixed Income", "Fixed Income", "#0d9488"),
     "GLD": AssetInfo("GLD", "SPDR Gold Shares", "Gold Bullion / Real Assets", "Real Assets", "#d97706"),
     "XLE": AssetInfo("XLE", "Energy Select Sector SPDR Fund", "US Energy Sector Equity", "Equity", "#dc2626"),
-    "XLK": AssetInfo("XLK", "Technology Select Sector SPDR Fund", "US Technology Sector Equity", "Equity", "#7c3aed"),
+    "XLK": AssetInfo("XLK", "Technology Select Sector SPDR Fund", "US Technology Sector Equity", "Equity", "#a581cc"),
 }
 
 METHOD_LABELS: dict[str, str] = {
@@ -63,21 +63,4 @@ METHOD_DESCRIPTIONS: dict[str, str] = {
 CONFIDENCE_LEVELS = [0.90, 0.95, 0.99]
 DEFAULT_NOTIONAL = 10_000_000.0
 
-PALETTE = {
-    "navy": "#0f172a",
-    "slate": "#334155",
-    "muted": "#64748b",
-    "light_bg": "#f8fafc",
-    "card_bg": "#ffffff",
-    "border": "#e2e8f0",
-    "teal": "#0d9488",
-    "teal_light": "#ccfbf1",
-    "blue": "#2563eb",
-    "blue_light": "#dbeafe",
-    "amber": "#d97706",
-    "amber_light": "#fef3c7",
-    "red": "#dc2626",
-    "red_light": "#fee2e2",
-    "green": "#16a34a",
-    "green_light": "#dcfce7",
-}
+from .theme import PALETTE

@@ -1,0 +1,833 @@
+diff --git a/.streamlit/config.toml b/.streamlit/config.toml
+new file mode 100644
+index 0000000..f953f79
+--- /dev/null
++++ b/.streamlit/config.toml
+@@ -0,0 +1,15 @@
++[theme]
++font = "sans-serif"
++baseRadius = "medium"
++
++[theme.light]
++primaryColor = "#08786d"
++backgroundColor = "#fffdf9"
++secondaryBackgroundColor = "#f3eee6"
++textColor = "#302720"
++
++[theme.dark]
++primaryColor = "#70d8c3"
++backgroundColor = "#211f1b"
++secondaryBackgroundColor = "#292722"
++textColor = "#f4eee5"
+diff --git a/app/charts.py b/app/charts.py
+index 5177cde..e4c915c 100644
+--- a/app/charts.py
++++ b/app/charts.py
+@@ -6,6 +6,7 @@ import plotly.graph_objects as go
+ from plotly.subplots import make_subplots
+ 
+ from .schemas import PALETTE, ASSET_REGISTRY, METHOD_LABELS
++from .theme import theme_name
+ from .formatting import format_currency, format_percent
+ 
+ 
+@@ -18,6 +19,7 @@ def apply_institutional_layout(fig: go.Figure, title: str = "", height: int = 42
+             "x": 0.01,
+             "xanchor": "left",
+         },
++        template="plotly_dark" if theme_name() == "dark" else "plotly_white",
+         paper_bgcolor=PALETTE["card_bg"],
+         plot_bgcolor=PALETTE["light_bg"],
+         font={"family": "Inter, -apple-system, sans-serif", "color": PALETTE["navy"], "size": 12},
+@@ -30,7 +32,7 @@ def apply_institutional_layout(fig: go.Figure, title: str = "", height: int = 42
+             "xanchor": "right",
+             "x": 1.0,
+             "font": {"size": 11},
+-            "bgcolor": "rgba(255, 255, 255, 0.8)",
++            "bgcolor": PALETTE["card_bg"],
+         },
+         hovermode="x unified",
+     )
+@@ -69,7 +71,7 @@ def plot_allocation_donut(weights_df: pd.DataFrame) -> go.Figure:
+             labels=display_df["asset"],
+             values=display_df["weight"],
+             hole=0.55,
+-            marker={"colors": colors, "line": {"color": "#ffffff", "width": 2}},
++            marker={"colors": colors, "line": {"color": PALETTE["card_bg"], "width": 2}},
+             textinfo="label+percent",
+             hovertext=hover_text,
+             hoverinfo="text",
+@@ -78,7 +80,9 @@ def plot_allocation_donut(weights_df: pd.DataFrame) -> go.Figure:
+         )
+     ])
+     fig.update_layout(
++        font={"color": PALETTE["navy"]},
+         showlegend=True,
++        template="plotly_dark" if theme_name() == "dark" else "plotly_white",
+         paper_bgcolor=PALETTE["card_bg"],
+         height=360,
+         margin={"l": 20, "r": 20, "t": 20, "b": 20},
+@@ -352,6 +356,7 @@ def plot_stress_paths(paths_df: pd.DataFrame, scenario_name: str, notional: floa
+ 
+     fig.update_layout(
+         height=450,
++        template="plotly_dark" if theme_name() == "dark" else "plotly_white",
+         paper_bgcolor=PALETTE["card_bg"],
+         font={"family": "Inter, -apple-system, sans-serif", "color": PALETTE["navy"]},
+         showlegend=False,
+diff --git a/app/components.py b/app/components.py
+index 8f9a8af..3c0650d 100644
+--- a/app/components.py
++++ b/app/components.py
+@@ -23,7 +23,7 @@ def render_basis_badge(basis_label: str) -> None:
+     is_oos = "Out-of-sample" in basis_label or "Frozen" in basis_label
+     bg_color = PALETTE["blue_light"] if is_oos else PALETTE["teal_light"]
+     text_color = PALETTE["blue"] if is_oos else PALETTE["teal"]
+-    border_color = "#93c5fd" if is_oos else "#99f6e4"
++    border_color = PALETTE["blue"] if is_oos else PALETTE["teal"]
+ 
+     st.markdown(
+         f"""
+@@ -38,22 +38,17 @@ def render_basis_badge(basis_label: str) -> None:
+ def render_callout(text: str, level: str = "info") -> None:
+     """Render an institutional callout alert box."""
+     if level == "warning":
+-        bg, border, text_color, icon = PALETTE["amber_light"], PALETTE["amber"], "#92400e", "⚠️"
++        bg, border, text_color, icon = PALETTE["amber_light"], PALETTE["amber"], PALETTE["amber"], "⚠️"
+     elif level == "danger" or level == "error":
+-        bg, border, text_color, icon = PALETTE["red_light"], PALETTE["red"], "#991b1b", "🚨"
++        bg, border, text_color, icon = PALETTE["red_light"], PALETTE["red"], PALETTE["red"], "🚨"
+     elif level == "success":
+-        bg, border, text_color, icon = PALETTE["green_light"], PALETTE["green"], "#166534", "✓"
++        bg, border, text_color, icon = PALETTE["green_light"], PALETTE["green"], PALETTE["green"], "✓"
+     else:  # info
+         bg, border, text_color, icon = PALETTE["light_bg"], PALETTE["border"], PALETTE["navy"], "ℹ️"
+ 
+-    st.markdown(
+-        f"""
+-        <div style="background-color: {bg}; border-left: 4px solid {border}; border-radius: 4px; padding: 0.75rem 1rem; margin: 0.75rem 0; color: {text_color}; font-size: 0.9rem; line-height: 1.45;">
+-            <span style="margin-right: 0.5rem; font-weight: bold;">{icon}</span> {text}
+-        </div>
+-        """,
+-        unsafe_allow_html=True,
+-    )
++    renderer = {"warning": st.warning, "danger": st.error, "error": st.error,
++                "success": st.success}.get(level, st.info)
++    renderer(text)
+ 
+ 
+ def render_traffic_light_badge(traffic_status: str, exceptions: int | None = None, observations: int | None = None) -> None:
+diff --git a/app/design.py b/app/design.py
+new file mode 100644
+index 0000000..38a3cb1
+--- /dev/null
++++ b/app/design.py
+@@ -0,0 +1,71 @@
++"""TiraMisU identity and accessible presentation. No analytical changes."""
++import streamlit as st
++from .theme import PALETTE as P
++
++TAGLINE = "Thoughtful allocation. Transparent risk."
++PAGES = ["1. Overview", "2. Portfolio & Performance", "3. Risk Analysis",
++         "4. Model Validation", "5. Stress & Risk Contributions", "6. Assumptions & Data Quality"]
++PAGE_LABELS = ["01  Investment briefing", "02  Allocation & performance", "03  Risk explorer",
++               "04  Model reliability", "05  Crisis & contributions", "06  Evidence & assumptions"]
++
++def apply_design():
++    st.html(f"""<style>
++    .stApp {{ --tm-ink:{P['navy']}; --tm-muted:{P['muted']}; --tm-line:{P['border']}; }}
++    .stMainBlockContainer {{max-width:1360px;padding-top:2.4rem;padding-bottom:3rem;}}
++    h1,h2,h3,h4 {{letter-spacing:-.025em;color:{P['navy']};}}
++    p,li {{line-height:1.65;}}
++    [data-testid="stSidebar"] {{border-right:1px solid {P['border']};}}
++    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {{gap:.6rem;}}
++    [data-testid="stSidebar"] [role="radiogroup"] label {{padding:.45rem .55rem;border-radius:8px;}}
++    [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {{background:{P['teal_light']};}}
++    [data-testid="stMetric"] {{background:{P['light_bg']};border:1px solid {P['border']};
++      border-radius:14px;padding:1rem 1.1rem;min-height:125px;}}
++    [data-testid="stMetricValue"] {{font-variant-numeric:tabular-nums;letter-spacing:-.035em;}}
++    [data-testid="stTabs"] [role="tablist"] {{gap:.35rem;border-bottom:1px solid {P['border']};}}
++    [data-testid="stTabs"] [role="tab"] {{padding:.6rem .9rem;}}
++    button:focus-visible,a:focus-visible {{outline:3px solid {P['teal']};outline-offset:3px;}}
++    .tm-brand {{font-size:2rem;font-weight:750;letter-spacing:-.07em;line-height:1.2;color:{P['navy']};}}
++    .tm-brand span {{color:{P['teal']};}}
++    .tm-school {{font-size:.78rem;letter-spacing:.02em;color:{P['muted']};margin:.3rem 0 1rem;}}
++    .tm-hero {{border:1px solid {P['border']};border-radius:20px;padding:2rem;
++      background:linear-gradient(115deg,{P['light_bg']},{P['card_bg']});position:relative;overflow:hidden;margin-bottom:1.3rem;}}
++    .tm-eyebrow {{color:{P['teal']};font-size:.72rem;text-transform:uppercase;letter-spacing:.15em;font-weight:700;}}
++    .tm-hero h1 {{font-size:clamp(1.8rem,3.2vw,3rem);line-height:1.15;max-width:780px;margin:.7rem 0;}}
++    .tm-hero p {{color:{P['muted']};max-width:680px;margin-bottom:0;}}
++    .tm-layers {{display:flex;gap:5px;margin-bottom:1rem;}}
++    .tm-layers i {{display:block;width:42px;height:7px;border-radius:4px;background:{P['teal']};}}
++    .tm-layers i:nth-child(2) {{background:{P['amber']};width:64px;}}
++    .tm-layers i:nth-child(3) {{background:{P['muted']};width:88px;}}
++    .tm-enter .tm-layers i {{animation:tm-arrive .65s ease-out both;}}
++    .tm-enter .tm-layers i:nth-child(2) {{animation-delay:.1s;}}
++    .tm-enter .tm-layers i:nth-child(3) {{animation-delay:.2s;}}
++    @keyframes tm-arrive {{from {{transform:translateX(-14px);opacity:0;}} to {{transform:none;opacity:1;}}}}
++    @media(prefers-reduced-motion:reduce) {{.tm-enter .tm-layers i {{animation:none;}}}}
++    @media(max-width:700px) {{.tm-hero {{padding:1.2rem;}} .stMainBlockContainer {{padding:1rem;}}
++      [data-testid="stMetric"] {{min-height:105px;padding:.75rem;}}}}
++    </style>""")
++
++def render_brand():
++    st.html('<div class="tm-brand">Tira<span>MisU</span></div>'
++            '<div class="tm-school">University of Peradeniya<br>Quant Edge 1.0</div>')
++
++def render_intro():
++    first = not st.session_state.get("tm_intro_seen", False)
++    st.session_state.tm_intro_seen = True
++    cls = "tm-hero tm-enter" if first else "tm-hero"
++    st.html(f'<section class="{cls}" aria-label="TiraMisU investment briefing">'
++            '<div class="tm-layers" aria-hidden="true"><i></i><i></i><i></i></div>'
++            '<div class="tm-eyebrow">TiraMisU · University of Peradeniya</div>'
++            f'<h1>{TAGLINE}</h1>'
++            '<p>Explore the Serendib Endowment proposal, examine its downside, '
++            'and follow the evidence behind each result.</p></section>')
++
++def _navigate(page):
++    st.session_state.tm_navigation = page
++
++def render_decision_routes():
++    for col, page, label in zip(st.columns(3), [PAGES[1],PAGES[4],PAGES[3]],
++        ["Explore the allocation →", "Examine crisis losses →", "Check model reliability →"]):
++        with col:
++            st.button(label, key="route_"+page, on_click=_navigate, args=(page,), width="stretch")
++    st.caption("Saved analytical results · Current-allocation replay and frozen validation are separate analyses.")
+diff --git a/app/schemas.py b/app/schemas.py
+index 52a1289..2778c68 100644
+--- a/app/schemas.py
++++ b/app/schemas.py
+@@ -17,13 +17,13 @@ class AssetInfo(NamedTuple):
+ 
+ 
+ ASSET_REGISTRY: dict[str, AssetInfo] = {
+-    "SPY": AssetInfo("SPY", "SPDR S&P 500 ETF Trust", "US Large-Cap Equity", "Equity", "#1e3a8a"),
+-    "EFA": AssetInfo("EFA", "iShares MSCI EAFE ETF", "Developed Markets Equity", "Equity", "#2563eb"),
+-    "EEM": AssetInfo("EEM", "iShares MSCI Emerging Markets ETF", "Emerging Markets Equity", "Equity", "#3b82f6"),
++    "SPY": AssetInfo("SPY", "SPDR S&P 500 ETF Trust", "US Large-Cap Equity", "Equity", "#5585bd"),
++    "EFA": AssetInfo("EFA", "iShares MSCI EAFE ETF", "Developed Markets Equity", "Equity", "#6987d5"),
++    "EEM": AssetInfo("EEM", "iShares MSCI Emerging Markets ETF", "Emerging Markets Equity", "Equity", "#56a9bf"),
+     "AGG": AssetInfo("AGG", "iShares Core U.S. Aggregate Bond ETF", "US Investment Grade Fixed Income", "Fixed Income", "#0d9488"),
+     "GLD": AssetInfo("GLD", "SPDR Gold Shares", "Gold Bullion / Real Assets", "Real Assets", "#d97706"),
+     "XLE": AssetInfo("XLE", "Energy Select Sector SPDR Fund", "US Energy Sector Equity", "Equity", "#dc2626"),
+-    "XLK": AssetInfo("XLK", "Technology Select Sector SPDR Fund", "US Technology Sector Equity", "Equity", "#7c3aed"),
++    "XLK": AssetInfo("XLK", "Technology Select Sector SPDR Fund", "US Technology Sector Equity", "Equity", "#a581cc"),
+ }
+ 
+ METHOD_LABELS: dict[str, str] = {
+@@ -63,21 +63,4 @@ METHOD_DESCRIPTIONS: dict[str, str] = {
+ CONFIDENCE_LEVELS = [0.90, 0.95, 0.99]
+ DEFAULT_NOTIONAL = 10_000_000.0
+ 
+-PALETTE = {
+-    "navy": "#0f172a",
+-    "slate": "#334155",
+-    "muted": "#64748b",
+-    "light_bg": "#f8fafc",
+-    "card_bg": "#ffffff",
+-    "border": "#e2e8f0",
+-    "teal": "#0d9488",
+-    "teal_light": "#ccfbf1",
+-    "blue": "#2563eb",
+-    "blue_light": "#dbeafe",
+-    "amber": "#d97706",
+-    "amber_light": "#fef3c7",
+-    "red": "#dc2626",
+-    "red_light": "#fee2e2",
+-    "green": "#16a34a",
+-    "green_light": "#dcfce7",
+-}
++from .theme import PALETTE
+diff --git a/app/streamlit_app.py b/app/streamlit_app.py
+index 0e7c2c3..c62b9c1 100644
+--- a/app/streamlit_app.py
++++ b/app/streamlit_app.py
+@@ -25,71 +25,21 @@ from app.views.assumptions import render_assumptions_view
+ 
+ # Streamlit Page Configuration
+ st.set_page_config(
+-    page_title="Serendib Endowment | Quant Edge 1.0",
++    page_title="TiraMisU | University of Peradeniya",
+     page_icon="🏛️",
+     layout="wide",
+     initial_sidebar_state="expanded",
+ )
+ 
+-# Custom minimal CSS for clean institutional typography and layout
+-st.markdown(
+-    f"""
+-    <style>
+-        /* Main background & typography */
+-        .main .block-container {{
+-            padding-top: 2rem;
+-            padding-bottom: 3rem;
+-            max-width: 1280px;
+-        }}
+-        h1, h2, h3, h4 {{
+-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+-            color: {PALETTE['navy']};
+-        }}
+-        /* Sidebar styling */
+-        section[data-testid="stSidebar"] {{
+-            background-color: #f1f5f9;
+-            border-right: 1px solid {PALETTE['border']};
+-        }}
+-        /* Clean tabs styling */
+-        .stTabs [data-baseweb="tab-list"] {{
+-            gap: 8px;
+-        }}
+-        .stTabs [data-baseweb="tab"] {{
+-            padding: 8px 16px;
+-            font-weight: 600;
+-            font-size: 0.9rem;
+-            color: {PALETTE['slate']};
+-            border-radius: 4px 4px 0 0;
+-        }}
+-        .stTabs [aria-selected="true"] {{
+-            color: {PALETTE['teal']} !important;
+-            border-bottom: 2px solid {PALETTE['teal']} !important;
+-        }}
+-    </style>
+-    """,
+-    unsafe_allow_html=True,
+-)
++from app.design import apply_design, render_brand, PAGES, PAGE_LABELS
+ 
+ 
+ def main() -> None:
++    apply_design()
+     # Sidebar Header
+     with st.sidebar:
+-        st.markdown(
+-            f"""
+-            <div style="margin-bottom: 1.25rem;">
+-                <div style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: {PALETTE['teal']};">
+-                    Quant Edge 1.0
+-                </div>
+-                <div style="font-size: 1.25rem; font-weight: 800; color: {PALETTE['navy']}; line-height: 1.2;">
+-                    Serendib Endowment
+-                </div>
+-                <div style="font-size: 0.8rem; color: {PALETTE['muted']}; margin-top: 0.2rem;">
+-                    Portfolio Value: USD 10,000,000
+-                </div>
+-            </div>
+-            """,
+-            unsafe_allow_html=True,
+-        )
++        render_brand()
++        st.caption("Thoughtful allocation. Transparent risk.")
+ 
+         # Primary Navigation
+         page = st.radio(
+@@ -103,6 +53,8 @@ def main() -> None:
+                 "6. Assumptions & Data Quality",
+             ],
+             index=0,
++            key="tm_navigation",
++            format_func=lambda value: PAGE_LABELS[PAGES.index(value)],
+             label_visibility="collapsed",
+         )
+ 
+@@ -142,7 +94,7 @@ def main() -> None:
+             st.warning("⚠️ **Configuration Notice**:\n" + "\n".join(f"• {d}" for d in discrepancies))
+ 
+         # Risk Forecast Controls (Confidence and Methodology)
+-        st.markdown("#### Risk & Forecast Parameters")
++
+         if page in ("3. Risk Analysis", "4. Model Validation"):
+             def _format_confidence(c: float | str) -> str:
+                 try:
+@@ -186,7 +138,6 @@ def main() -> None:
+         else:
+             selected_confidence = 0.95
+             selected_method = "historical"
+-            st.caption("ℹ️ *Risk methodology controls apply to Risk Analysis and Model Validation views.*")
+ 
+         # Evaluation Date Filtering (Used on Model Validation page)
+         eval_start_date = None
+@@ -227,6 +178,8 @@ def main() -> None:
+ 
+         st.markdown("---")
+ 
++        st.caption("Appearance: ⋮ → Settings → Theme. Choose Light, Dark, or system preference.")
++
+         # Data Status & Cutoffs Panel
+         try:
+             cutoffs = load_data_cutoffs()
+diff --git a/app/theme.py b/app/theme.py
+new file mode 100644
+index 0000000..464db34
+--- /dev/null
++++ b/app/theme.py
+@@ -0,0 +1,25 @@
++"""Session-local native theme adapter; never mutate a shared palette."""
++from collections.abc import Mapping
++import streamlit as st
++
++LIGHT = dict(navy="#302720", slate="#51483f", muted="#70665b", light_bg="#f3eee6",
++ card_bg="#fffdf9", border="#d9d0c4", teal="#08786d", teal_light="#e0f0eb",
++ blue="#315fb5", blue_light="#e6edf9", amber="#8c5b13", amber_light="#fff0d2",
++ red="#b33a3a", red_light="#fbe8e5", green="#237044", green_light="#e4f1e5")
++DARK = dict(navy="#f4eee5", slate="#ddd3c6", muted="#b6ab9c", light_bg="#292722",
++ card_bg="#211f1b", border="#49443c", teal="#70d8c3", teal_light="#193d36",
++ blue="#9ebdff", blue_light="#24344d", amber="#edc47c", amber_light="#42331e",
++ red="#ffaaa3", red_light="#482b2a", green="#97d5a6", green_light="#253c2d")
++
++def theme_name():
++    return "dark" if st.context.theme.type == "dark" else "light"
++
++class ThemePalette(Mapping):
++    def __getitem__(self, key):
++        return (DARK if theme_name() == "dark" else LIGHT)[key]
++    def __iter__(self):
++        return iter(LIGHT)
++    def __len__(self):
++        return len(LIGHT)
++
++PALETTE = ThemePalette()
+diff --git a/app/views/overview.py b/app/views/overview.py
+index 7e945b5..4396514 100644
+--- a/app/views/overview.py
++++ b/app/views/overview.py
+@@ -4,6 +4,7 @@ import streamlit as st
+ import numpy as np
+ import pandas as pd
+ 
++from app.design import render_intro, render_decision_routes
+ from app.components import render_header, render_callout, render_basis_badge
+ from app.data_access import (
+     load_selected_portfolio,
+@@ -20,6 +21,8 @@ from app.schemas import PortfolioBasis, PALETTE, ASSET_REGISTRY
+ 
+ def render_overview_view() -> None:
+     """Render the executive summary overview view."""
++    render_intro()
++    render_decision_routes()
+     render_header(
+         "Executive Overview",
+         "Portfolio construction, risk measurement and validation for the Serendib University Endowment.",
+@@ -73,69 +76,70 @@ def render_overview_view() -> None:
+ 
+     st.markdown("---")
+ 
+-    # Realized vs Expected Return Distinction Callout
+-    c_left, c_right = st.columns([1, 1])
+-    with c_left:
+-        st.markdown(
+-            f"""
+-            <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 8px; padding: 1.25rem;">
+-                <h4 style="color: {PALETTE['navy']}; margin-top: 0; margin-bottom: 0.75rem; font-size: 1.1rem;">
+-                    Optimization & Expected Estimates
+-                </h4>
+-                <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
+-                    <tr style="border-bottom: 1px solid {PALETTE['border']};">
+-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Target Return Constraint</td>
+-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(target_return, 2)}</td>
+-                    </tr>
+-                    <tr style="border-bottom: 1px solid {PALETTE['border']};">
+-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Estimated Annual Return (Model)</td>
+-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['teal']};">{format_percent(expected_return, 2)}</td>
+-                    </tr>
+-                    <tr style="border-bottom: 1px solid {PALETTE['border']};">
+-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Estimated Volatility (Covariance)</td>
+-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(optimizer_vol, 2)}</td>
+-                    </tr>
+-                    <tr>
+-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Optimization Objective</td>
+-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">Target-Return Minimum Variance</td>
+-                    </tr>
+-                </table>
+-            </div>
+-            """,
+-            unsafe_allow_html=True,
+-        )
++    with st.expander("Compare model estimates with historical results", expanded=False):
++        # Realized vs Expected Return Distinction Callout
++        c_left, c_right = st.columns([1, 1])
++        with c_left:
++            st.markdown(
++                f"""
++                <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 8px; padding: 1.25rem;">
++                    <h4 style="color: {PALETTE['navy']}; margin-top: 0; margin-bottom: 0.75rem; font-size: 1.1rem;">
++                        Optimization & Expected Estimates
++                    </h4>
++                    <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
++                        <tr style="border-bottom: 1px solid {PALETTE['border']};">
++                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Target Return Constraint</td>
++                            <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(target_return, 2)}</td>
++                        </tr>
++                        <tr style="border-bottom: 1px solid {PALETTE['border']};">
++                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Estimated Annual Return (Model)</td>
++                            <td style="text-align: right; font-weight: 600; color: {PALETTE['teal']};">{format_percent(expected_return, 2)}</td>
++                        </tr>
++                        <tr style="border-bottom: 1px solid {PALETTE['border']};">
++                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Estimated Volatility (Covariance)</td>
++                            <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(optimizer_vol, 2)}</td>
++                        </tr>
++                        <tr>
++                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Optimization Objective</td>
++                            <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">Target-Return Minimum Variance</td>
++                        </tr>
++                    </table>
++                </div>
++                """,
++                unsafe_allow_html=True,
++            )
+ 
+-    with c_right:
+-        st.markdown(
+-            f"""
+-            <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 8px; padding: 1.25rem;">
+-                <h4 style="color: {PALETTE['navy']}; margin-top: 0; margin-bottom: 0.75rem; font-size: 1.1rem;">
+-                    Realized Historical Performance (2007–2026)
+-                </h4>
+-                <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
+-                    <tr style="border-bottom: 1px solid {PALETTE['border']};">
+-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Realized Compound Annual Return</td>
+-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(realized_return, 2)}</td>
+-                    </tr>
+-                    <tr style="border-bottom: 1px solid {PALETTE['border']};">
+-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Realized Annual Volatility</td>
+-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(realized_vol, 2)}</td>
+-                    </tr>
+-                    <tr style="border-bottom: 1px solid {PALETTE['border']};">
+-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Historical Maximum Drawdown</td>
+-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['red']};">{format_percent(max_dd, 2)}</td>
+-                    </tr>
+-                    <tr>
+-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Realized Sharpe Ratio</td>
+-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{sharpe:.2f} (rf = {format_percent(float(kpi_summary.get('annualized_risk_free', 0.0422)), 2)})</td>
+-                    </tr>
+-                </table>
+-            </div>
+-            """,
+-            unsafe_allow_html=True,
+-        )
++        with c_right:
++            st.markdown(
++                f"""
++                <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 8px; padding: 1.25rem;">
++                    <h4 style="color: {PALETTE['navy']}; margin-top: 0; margin-bottom: 0.75rem; font-size: 1.1rem;">
++                        Realized Historical Performance (2007–2026)
++                    </h4>
++                    <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
++                        <tr style="border-bottom: 1px solid {PALETTE['border']};">
++                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Realized Compound Annual Return</td>
++                            <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(realized_return, 2)}</td>
++                        </tr>
++                        <tr style="border-bottom: 1px solid {PALETTE['border']};">
++                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Realized Annual Volatility</td>
++                            <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(realized_vol, 2)}</td>
++                        </tr>
++                        <tr style="border-bottom: 1px solid {PALETTE['border']};">
++                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Historical Maximum Drawdown</td>
++                            <td style="text-align: right; font-weight: 600; color: {PALETTE['red']};">{format_percent(max_dd, 2)}</td>
++                        </tr>
++                        <tr>
++                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Realized Sharpe Ratio</td>
++                            <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{sharpe:.2f} (rf = {format_percent(float(kpi_summary.get('annualized_risk_free', 0.0422)), 2)})</td>
++                        </tr>
++                    </table>
++                </div>
++                """,
++                unsafe_allow_html=True,
++            )
+ 
+-    st.markdown("<br>", unsafe_allow_html=True)
++        st.markdown("<br>", unsafe_allow_html=True)
+ 
+     # Current Allocation Summary
+     st.subheader("Current Proposed Asset Allocation")
+@@ -146,7 +150,7 @@ def render_overview_view() -> None:
+         with cols[idx]:
+             st.markdown(
+                 f"""
+-                <div style="background-color: white; border: 1px solid {PALETTE['border']}; border-top: 4px solid {row.color}; border-radius: 6px; padding: 0.75rem 0.5rem; text-align: center;">
++                <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-top: 4px solid {row.color}; border-radius: 6px; padding: 0.75rem 0.5rem; text-align: center;">
+                     <div style="font-size: 1.15rem; font-weight: 800; color: {PALETTE['navy']};">{row.asset}</div>
+                     <div style="font-size: 0.78rem; color: {PALETTE['muted']}; margin-bottom: 0.35rem;">{row.category}</div>
+                     <div style="font-size: 1.2rem; font-weight: 700; color: {PALETTE['navy']};">{format_percent(row.weight, 1)}</div>
+@@ -213,64 +217,3 @@ def render_overview_view() -> None:
+         level="info",
+     )
+ 
+-    # Navigation Guide Cards
+-    st.markdown("### Committee Decision Navigation")
+-    n1, n2, n3 = st.columns(3)
+-    with n1:
+-        st.markdown(
+-            f"""
+-            <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 1rem; height: 100%;">
+-                <h5 style="color: {PALETTE['navy']}; margin: 0 0 0.5rem 0;">1. Where is the money invested?</h5>
+-                <p style="font-size: 0.85rem; color: {PALETTE['muted']}; margin: 0 0 0.5rem 0;">View position weights, dollar amounts, broad asset class exposures, and cumulative growth charts.</p>
+-                <span style="font-size: 0.82rem; font-weight: 600; color: {PALETTE['teal']};">→ Explore Portfolio & Performance</span>
+-            </div>
+-            """,
+-            unsafe_allow_html=True,
+-        )
+-    with n2:
+-        st.markdown(
+-            f"""
+-            <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 1rem; height: 100%;">
+-                <h5 style="color: {PALETTE['navy']}; margin: 0 0 0.5rem 0;">2. How much could it lose?</h5>
+-                <p style="font-size: 0.85rem; color: {PALETTE['muted']}; margin: 0 0 0.5rem 0;">Review Value at Risk (VaR) and Expected Shortfall (ES) across Historical, EWMA, Bootstrap, and EVT models.</p>
+-                <span style="font-size: 0.82rem; font-weight: 600; color: {PALETTE['teal']};">→ Explore Risk Analysis</span>
+-            </div>
+-            """,
+-            unsafe_allow_html=True,
+-        )
+-    with n3:
+-        st.markdown(
+-            f"""
+-            <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 1rem; height: 100%;">
+-                <h5 style="color: {PALETTE['navy']}; margin: 0 0 0.5rem 0;">3. How reliable are forecasts?</h5>
+-                <p style="font-size: 0.85rem; color: {PALETTE['muted']}; margin: 0 0 0.5rem 0;">Examine out-of-sample backtesting, Kupiec tests, Christoffersen independence, and Basel traffic lights.</p>
+-                <span style="font-size: 0.82rem; font-weight: 600; color: {PALETTE['teal']};">→ Explore Model Validation</span>
+-            </div>
+-            """,
+-            unsafe_allow_html=True,
+-        )
+-
+-    st.markdown("<br>", unsafe_allow_html=True)
+-    n4, n5, _ = st.columns([1, 1, 1])
+-    with n4:
+-        st.markdown(
+-            f"""
+-            <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 1rem; height: 100%;">
+-                <h5 style="color: {PALETTE['navy']}; margin: 0 0 0.5rem 0;">4. What happens during crises?</h5>
+-                <p style="font-size: 0.85rem; color: {PALETTE['muted']}; margin: 0 0 0.5rem 0;">Simulate GFC 2008, COVID crash, 2022 rate shocks, and examine Euler risk contributions by asset.</p>
+-                <span style="font-size: 0.82rem; font-weight: 600; color: {PALETTE['teal']};">→ Explore Stress & Risk Contributions</span>
+-            </div>
+-            """,
+-            unsafe_allow_html=True,
+-        )
+-    with n5:
+-        st.markdown(
+-            f"""
+-            <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 1rem; height: 100%;">
+-                <h5 style="color: {PALETTE['navy']}; margin: 0 0 0.5rem 0;">5. What assumptions were made?</h5>
+-                <p style="font-size: 0.85rem; color: {PALETTE['muted']}; margin: 0 0 0.5rem 0;">Review data governance, ADF stationarity, missing price handling, and critical analytical limitations.</p>
+-                <span style="font-size: 0.82rem; font-weight: 600; color: {PALETTE['teal']};">→ Explore Assumptions & Quality</span>
+-            </div>
+-            """,
+-            unsafe_allow_html=True,
+-        )
+diff --git a/app/views/validation.py b/app/views/validation.py
+index d37de81..208e695 100644
+--- a/app/views/validation.py
++++ b/app/views/validation.py
+@@ -153,7 +153,7 @@ def render_validation_view(
+         kupiec_color = PALETTE["red"] if kupiec_reject else PALETTE["green"]
+         st.markdown(
+             f"""
+-            <div style="background-color: white; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
++            <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
+                 <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Kupiec POF (Coverage)</div>
+                 <div style="font-size: 1.05rem; font-weight: 700; color: {kupiec_color}; margin: 0.25rem 0;">{kupiec_status}</div>
+                 <div style="font-size: 0.78rem; color: {PALETTE['muted']};">LR = {test_results['kupiec_lr']:.2f} | p = {format_p_value(kupiec_p)}</div>
+@@ -172,7 +172,7 @@ def render_validation_view(
+             indep_sub = f"LR = {test_results['independence_lr']:.2f} | p = {format_p_value(indep_p)}"
+         st.markdown(
+             f"""
+-            <div style="background-color: white; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
++            <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
+                 <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Christoffersen Independence</div>
+                 <div style="font-size: 1.05rem; font-weight: 700; color: {indep_color}; margin: 0.25rem 0;">{indep_text}</div>
+                 <div style="font-size: 0.78rem; color: {PALETTE['muted']};">{indep_sub}</div>
+@@ -191,7 +191,7 @@ def render_validation_view(
+             cc_sub = f"LR = {test_results['conditional_coverage_lr']:.2f} | p = {format_p_value(cc_p)}"
+         st.markdown(
+             f"""
+-            <div style="background-color: white; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
++            <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
+                 <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Joint Conditional Coverage</div>
+                 <div style="font-size: 1.05rem; font-weight: 700; color: {cc_color}; margin: 0.25rem 0;">{cc_text}</div>
+                 <div style="font-size: 0.78rem; color: {PALETTE['muted']};">{cc_sub}</div>
+diff --git a/docs/AGENT_RUN_REPORT.md b/docs/AGENT_RUN_REPORT.md
+index 1f98d04..2d50646 100644
+--- a/docs/AGENT_RUN_REPORT.md
++++ b/docs/AGENT_RUN_REPORT.md
+@@ -44,3 +44,7 @@ This run report describes the original analytical pipeline. Later experiments re
+   - Implemented comprehensive test coverage across `tests/test_app_data_access.py`, `tests/test_app_integration.py`, `tests/test_app_scenarios.py` (all 20 checklist scenarios), and `tests/test_app_views_apptest.py` (Streamlit `AppTest` multi-page navigation). **All 87 tests pass**.
+   - Launched Streamlit server locally and performed visual browser verification across all 6 views with browser subagent recording `app_verification_1793209219308.webp`. Confirmed zero runtime exceptions, clean institutional styling, honest collapsed frontier presentation, and fully working controls.
+   - Documented application architecture and test inventory in `docs/STREAMLIT_APP.md` and updated `README.md` and `docs/LIVING_PROJECT_NOTES.md`.
++
++
++## TiraMisU presentation patch — 2026-10-29
++Native light/dark presentation, branding, overview shortcuts, accessible theme tokens and theme tests added. See TIRAMISU_UI_PATCH.md for scope and verification limits.
+diff --git a/docs/LIVING_PROJECT_NOTES.md b/docs/LIVING_PROJECT_NOTES.md
+index 2f928a1..c07aba7 100644
+--- a/docs/LIVING_PROJECT_NOTES.md
++++ b/docs/LIVING_PROJECT_NOTES.md
+@@ -96,3 +96,7 @@
+ - See [TRAINING_START_COMPARISON.md](TRAINING_START_COMPARISON.md) for before/after weights and scenario losses.
+ 
+ | 2026-10-27 | Codex | Ran configured pipeline; target 6.50%, expected return 7.66%, volatility 8.57% | outputs/, docs/ | Record reproducible results |
++
++
++## TiraMisU presentation patch — 2026-10-29
++Native light/dark presentation, branding, overview shortcuts, accessible theme tokens and theme tests added. See TIRAMISU_UI_PATCH.md for scope and verification limits.
+diff --git a/docs/TIRAMISU_UI_PATCH.md b/docs/TIRAMISU_UI_PATCH.md
+new file mode 100644
+index 0000000..cbd30f4
+--- /dev/null
++++ b/docs/TIRAMISU_UI_PATCH.md
+@@ -0,0 +1,30 @@
++# TiraMisU presentation patch
++
++Identity: TiraMisU — University of Peradeniya.
++Tagline: Thoughtful allocation. Transparent risk.
++
++This patch targets the uploaded rash (2) archive. It preserves financial models and saved outputs.
++
++## Included
++- Espresso/ivory light theme and warm charcoal dark theme using native Streamlit settings.
++- Session-local theme tokens for custom cards and Plotly figures; no shared palette mutation.
++- Non-blocking, once-per-session brand animation respecting reduced-motion preference.
++- Compact navigation and overview decision shortcuts.
++- Collapsed model-versus-history details; redundant overview navigation cards removed.
++- Native readable Markdown notices and consistent card surfaces.
++- Page routing tests in both theme configurations, contrast checks, and absolute AppTest paths.
++
++## Runtime
++Requires Streamlit >=1.66.1,<2. Run from the repository root so .streamlit/config.toml is read.
++Choose Appearance using the top-right menu: Settings > Theme > Light / Dark / system.
++The native setting controls widgets and tables as well as the custom dashboard.
++
++## Verification
++91 tests passed with 7 existing statsmodels future warnings.
++Both theme configurations and all six pages exercised via AppTest.
++Text colours checked for at least 4.5:1 contrast on card and panel backgrounds.
++A headless server launched successfully. Browser installation failed in the review environment,
++so visual screenshot validation was not performed. Check desktop/mobile layouts, Plotly hover
++labels, tables, and native theme switching locally before presentation.
++The update is a distinctive team treatment, not a claim of exclusive worldwide design originality.
++No backend calculations, results, or investment conclusions changed.
+diff --git a/requirements.txt b/requirements.txt
+index 9272172..b5e650f 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -9,4 +9,4 @@ plotly
+ pytest
+ pyyaml
+ pyarrow
+-streamlit
++streamlit>=1.66.1,<2
+diff --git a/tests/test_app_views_apptest.py b/tests/test_app_views_apptest.py
+index b8af5da..a5fc8eb 100644
+--- a/tests/test_app_views_apptest.py
++++ b/tests/test_app_views_apptest.py
+@@ -1,11 +1,13 @@
+ """Streamlit AppTest integration tests for full UI navigation and interactivity."""
+ import pytest
++from pathlib import Path
++APP_PATH = Path(__file__).resolve().parents[1] / "app/streamlit_app.py"
+ from streamlit.testing.v1 import AppTest
+ 
+ 
+ def test_apptest_overview_page():
+     """Verify Overview page renders cleanly with key metrics."""
+-    at = AppTest.from_file("app/streamlit_app.py", default_timeout=30).run()
++    at = AppTest.from_file(APP_PATH, default_timeout=30).run()
+     assert len(at.exception) == 0
+     # Check that header rendered
+     assert any("Executive Overview" in str(h.value) for h in at.markdown)
+@@ -13,7 +15,7 @@ def test_apptest_overview_page():
+ 
+ def test_apptest_portfolio_page_current_and_validation():
+     """Verify Portfolio page renders for both Current and Validation bases."""
+-    at = AppTest.from_file("app/streamlit_app.py", default_timeout=30).run()
++    at = AppTest.from_file(APP_PATH, default_timeout=30).run()
+     # Navigate to Portfolio page
+     at.sidebar.radio[0].set_value("2. Portfolio & Performance").run()
+     assert len(at.exception) == 0
+@@ -28,7 +30,7 @@ def test_apptest_portfolio_page_current_and_validation():
+ 
+ def test_apptest_risk_page_interactions():
+     """Verify Risk Analysis view renders and reacts to confidence/method selections."""
+-    at = AppTest.from_file("app/streamlit_app.py", default_timeout=30).run()
++    at = AppTest.from_file(APP_PATH, default_timeout=30).run()
+     at.sidebar.radio[0].set_value("3. Risk Analysis").run()
+     assert len(at.exception) == 0
+     assert any("Risk Analysis" in str(m.value) for m in at.markdown)
+@@ -36,7 +38,7 @@ def test_apptest_risk_page_interactions():
+ 
+ def test_apptest_validation_page():
+     """Verify Model Validation view renders without errors."""
+-    at = AppTest.from_file("app/streamlit_app.py", default_timeout=30).run()
++    at = AppTest.from_file(APP_PATH, default_timeout=30).run()
+     at.sidebar.radio[0].set_value("4. Model Validation").run()
+     assert len(at.exception) == 0
+     assert any("Model Validation" in str(m.value) for m in at.markdown)
+@@ -44,7 +46,7 @@ def test_apptest_validation_page():
+ 
+ def test_apptest_stress_page():
+     """Verify Stress & Risk Contributions page renders and displays scenario selectors."""
+-    at = AppTest.from_file("app/streamlit_app.py", default_timeout=30).run()
++    at = AppTest.from_file(APP_PATH, default_timeout=30).run()
+     at.sidebar.radio[0].set_value("5. Stress & Risk Contributions").run()
+     assert len(at.exception) == 0
+     assert any("Stress" in str(m.value) for m in at.markdown)
+@@ -52,7 +54,7 @@ def test_apptest_stress_page():
+ 
+ def test_apptest_assumptions_page():
+     """Verify Assumptions & Data Quality page renders diagnostics tables."""
+-    at = AppTest.from_file("app/streamlit_app.py", default_timeout=30).run()
++    at = AppTest.from_file(APP_PATH, default_timeout=30).run()
+     at.sidebar.radio[0].set_value("6. Assumptions & Data Quality").run()
+     assert len(at.exception) == 0
+     assert any("Assumptions" in str(m.value) for m in at.markdown)
+@@ -60,7 +62,7 @@ def test_apptest_assumptions_page():
+ 
+ def test_apptest_reload_button():
+     """Verify Reload Results button executes and refreshes application state."""
+-    at = AppTest.from_file("app/streamlit_app.py", default_timeout=30).run()
++    at = AppTest.from_file(APP_PATH, default_timeout=30).run()
+     # Click reload button in sidebar
+     reload_btns = [b for b in at.sidebar.button if "Reload" in str(b.label)]
+     if reload_btns:
+diff --git a/tests/test_tiramisu_theme.py b/tests/test_tiramisu_theme.py
+new file mode 100644
+index 0000000..56b1b04
+--- /dev/null
++++ b/tests/test_tiramisu_theme.py
+@@ -0,0 +1,38 @@
++"""Theme isolation, readable semantic tokens, and branded navigation."""
++from pathlib import Path
++import pytest
++from streamlit.testing.v1 import AppTest
++from app import theme
++
++APP = Path(__file__).resolve().parents[1] / 'app/streamlit_app.py'
++
++@pytest.mark.parametrize('mode', ['light', 'dark'])
++def test_theme_pages_and_navigation(monkeypatch, mode):
++    monkeypatch.setattr(theme, 'theme_name', lambda: mode)
++    at = AppTest.from_file(APP, default_timeout=30).run()
++    assert not at.exception
++    at.button(key='route_5. Stress & Risk Contributions').click().run()
++    assert at.sidebar.radio[0].value == '5. Stress & Risk Contributions'
++    for page in ['1. Overview','2. Portfolio & Performance','3. Risk Analysis',
++                 '4. Model Validation','5. Stress & Risk Contributions','6. Assumptions & Data Quality']:
++        at.sidebar.radio[0].set_value(page).run()
++        assert not at.exception, page
++
++
++def test_palette_does_not_leak_between_sessions(monkeypatch):
++    monkeypatch.setattr(theme, 'theme_name', lambda: 'dark')
++    assert theme.PALETTE['navy'] == theme.DARK['navy']
++    monkeypatch.setattr(theme, 'theme_name', lambda: 'light')
++    assert theme.PALETTE['navy'] == theme.LIGHT['navy']
++
++
++def test_body_text_contrast():
++    def luminance(color):
++        rgb = [int(color[i:i+2],16)/255 for i in (1,3,5)]
++        v = [x/12.92 if x<=.04045 else ((x+.055)/1.055)**2.4 for x in rgb]
++        return sum(a*b for a,b in zip(v,[.2126,.7152,.0722]))
++    for palette in [theme.LIGHT,theme.DARK]:
++        for fg in ['navy','slate','muted']:
++            for bg in ['card_bg','light_bg']:
++                a,b=sorted([luminance(palette[fg]),luminance(palette[bg])])
++                assert (b+.05)/(a+.05)>=4.5, (fg,bg)

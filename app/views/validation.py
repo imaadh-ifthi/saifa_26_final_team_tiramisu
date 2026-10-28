@@ -153,7 +153,7 @@ def render_validation_view(
         kupiec_color = PALETTE["red"] if kupiec_reject else PALETTE["green"]
         st.markdown(
             f"""
-            <div style="background-color: white; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
+            <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
                 <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Kupiec POF (Coverage)</div>
                 <div style="font-size: 1.05rem; font-weight: 700; color: {kupiec_color}; margin: 0.25rem 0;">{kupiec_status}</div>
                 <div style="font-size: 0.78rem; color: {PALETTE['muted']};">LR = {test_results['kupiec_lr']:.2f} | p = {format_p_value(kupiec_p)}</div>
@@ -172,7 +172,7 @@ def render_validation_view(
             indep_sub = f"LR = {test_results['independence_lr']:.2f} | p = {format_p_value(indep_p)}"
         st.markdown(
             f"""
-            <div style="background-color: white; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
+            <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
                 <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Christoffersen Independence</div>
                 <div style="font-size: 1.05rem; font-weight: 700; color: {indep_color}; margin: 0.25rem 0;">{indep_text}</div>
                 <div style="font-size: 0.78rem; color: {PALETTE['muted']};">{indep_sub}</div>
@@ -191,7 +191,7 @@ def render_validation_view(
             cc_sub = f"LR = {test_results['conditional_coverage_lr']:.2f} | p = {format_p_value(cc_p)}"
         st.markdown(
             f"""
-            <div style="background-color: white; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
+            <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
                 <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Joint Conditional Coverage</div>
                 <div style="font-size: 1.05rem; font-weight: 700; color: {cc_color}; margin: 0.25rem 0;">{cc_text}</div>
                 <div style="font-size: 0.78rem; color: {PALETTE['muted']};">{cc_sub}</div>
@@ -208,7 +208,7 @@ def render_validation_view(
     # Full Backtesting Results Across All Methods and Confidences Table
     st.subheader(f"Baseline Model Calibration Master Table (Full Unfiltered Sample: {format_date(full_min_date)} to {format_date(full_max_date)})")
     if is_filtered_window:
-        st.caption("ℹ️ **Table Scope Notice**: This master table reports baseline results over the complete 2,212-day out-of-sample horizon. The metric cards above reflect your custom filtered date window.")
+        st.caption("**Table Scope Notice**: This master table reports baseline results over the complete 2,212-day out-of-sample horizon. The metric cards above reflect your custom filtered date window.")
 
     b_display = baseline_backtests.copy()
     b_display["Method"] = b_display["method"].map(lambda m: METHOD_LABELS.get(m, m))
@@ -239,7 +239,7 @@ def render_validation_view(
 
     # Critical Honest Disclosure Expander
     st.markdown("---")
-    with st.expander("🚨 Crucial Governance Insight: Reconciling Green Traffic Lights with Statistical Rejections"):
+    with st.expander("Governance Insight: Reconciling Green Traffic Lights with Statistical Rejections"):
         st.markdown(
             f"""
             <div style="font-size: 0.92rem; color: {PALETTE['navy']}; line-height: 1.55;">

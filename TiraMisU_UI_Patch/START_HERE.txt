@@ -1,0 +1,26 @@
+TiraMisU — University of Peradeniya
+Thoughtful allocation. Transparent risk.
+
+This package targets saifa_26_final_team_tiramisu-rash (2).zip.
+Contains a Git patch plus replacement files for the changed paths only.
+
+Recommended installation (from your repository root):
+1. Save/commit your current work first.
+2. Extract this package outside the repository.
+3. Run: git apply --check /path/to/tiramisu-ui.patch
+4. If the check succeeds: git apply /path/to/tiramisu-ui.patch
+5. Run: python -m pip install -r requirements.txt
+6. Run: python -m pytest -q
+7. Run: python -m streamlit run app/streamlit_app.py
+
+Use Windows paths in quotes if they contain spaces.
+If the patch check fails, your files have changed: do not force it. Review the differences.
+Alternatively, merge the replacement-files folder into your project manually, reviewing overwrites.
+Do not apply both methods.
+
+Theme: top-right menu > Settings > Theme > Light / Dark / system.
+Run from the project root. .streamlit/config.toml must be included.
+
+Verified: 91 tests passed. Patch applies cleanly to the uploaded archive baseline.
+Browser visual verification remains to be performed locally; see docs/TIRAMISU_UI_PATCH.md.
+Backend and saved results are unchanged.

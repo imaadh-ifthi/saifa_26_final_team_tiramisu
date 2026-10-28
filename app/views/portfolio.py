@@ -70,10 +70,10 @@ def render_portfolio_view(selected_basis: PortfolioBasis = PortfolioBasis.CURREN
 
     # Tabs for clean institutional layout
     tab_alloc, tab_perf, tab_frontier, tab_estimates = st.tabs([
-        "📊 Asset Allocation & Mandate",
-        "📈 Historical Performance & KPIs",
-        "🎯 Efficient Frontier & Optimization",
-        "📐 Supporting Estimates (Returns & Covariance)",
+        "Asset Allocation & Mandate",
+        "Historical Performance & KPIs",
+        "Efficient Frontier & Optimization",
+        "Supporting Estimates (Returns & Covariance)",
     ])
 
     with tab_alloc:
@@ -231,7 +231,7 @@ def render_portfolio_view(selected_basis: PortfolioBasis = PortfolioBasis.CURREN
                 ),
             )
 
-        with st.expander("📋 Detailed Institutional Performance Metrics & Conventions"):
+        with st.expander("Detailed Institutional Performance Metrics & Conventions"):
             d1, d2, d3 = st.columns(3)
             with d1:
                 st.markdown(f"**Sortino Ratio**: {format_number(float(kpi_dict.get('sortino_ratio', 0.0)), 2)}")

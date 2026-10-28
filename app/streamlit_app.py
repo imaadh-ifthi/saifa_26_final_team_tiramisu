@@ -25,71 +25,20 @@ from app.views.assumptions import render_assumptions_view
 
 # Streamlit Page Configuration
 st.set_page_config(
-    page_title="Serendib Endowment | Quant Edge 1.0",
-    page_icon="🏛️",
+    page_title="TiraMisU | University of Peradeniya",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Custom minimal CSS for clean institutional typography and layout
-st.markdown(
-    f"""
-    <style>
-        /* Main background & typography */
-        .main .block-container {{
-            padding-top: 2rem;
-            padding-bottom: 3rem;
-            max-width: 1280px;
-        }}
-        h1, h2, h3, h4 {{
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            color: {PALETTE['navy']};
-        }}
-        /* Sidebar styling */
-        section[data-testid="stSidebar"] {{
-            background-color: #f1f5f9;
-            border-right: 1px solid {PALETTE['border']};
-        }}
-        /* Clean tabs styling */
-        .stTabs [data-baseweb="tab-list"] {{
-            gap: 8px;
-        }}
-        .stTabs [data-baseweb="tab"] {{
-            padding: 8px 16px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            color: {PALETTE['slate']};
-            border-radius: 4px 4px 0 0;
-        }}
-        .stTabs [aria-selected="true"] {{
-            color: {PALETTE['teal']} !important;
-            border-bottom: 2px solid {PALETTE['teal']} !important;
-        }}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+from app.design import apply_design, render_brand, PAGES, PAGE_LABELS
 
 
 def main() -> None:
+    apply_design()
     # Sidebar Header
     with st.sidebar:
-        st.markdown(
-            f"""
-            <div style="margin-bottom: 1.25rem;">
-                <div style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: {PALETTE['teal']};">
-                    Quant Edge 1.0
-                </div>
-                <div style="font-size: 1.25rem; font-weight: 800; color: {PALETTE['navy']}; line-height: 1.2;">
-                    Serendib Endowment
-                </div>
-                <div style="font-size: 0.8rem; color: {PALETTE['muted']}; margin-top: 0.2rem;">
-                    Portfolio Value: USD 10,000,000
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        render_brand()
+        st.caption("Thoughtful allocation. Transparent risk.")
 
         # Primary Navigation
         page = st.radio(
@@ -103,6 +52,8 @@ def main() -> None:
                 "6. Assumptions & Data Quality",
             ],
             index=0,
+            key="tm_navigation",
+            format_func=lambda value: PAGE_LABELS[PAGES.index(value)],
             label_visibility="collapsed",
         )
 
@@ -128,10 +79,10 @@ def main() -> None:
             )
         elif page == "4. Model Validation":
             selected_basis = PortfolioBasis.VALIDATION
-            st.caption("🔒 **Locked Basis**: Frozen validation portfolio (OOS evaluation).")
+            st.caption("**Locked Basis**: Frozen validation portfolio (OOS evaluation).")
         else:
             selected_basis = PortfolioBasis.CURRENT
-            st.caption("🔒 **Locked Basis**: Current proposed allocation (retrospective).")
+            st.caption("**Locked Basis**: Current proposed allocation (retrospective).")
 
         st.markdown("---")
 
@@ -139,10 +90,10 @@ def main() -> None:
         from app.data_access import check_config_metadata_discrepancies, load_var_forecasts
         discrepancies = check_config_metadata_discrepancies()
         if discrepancies:
-            st.warning("⚠️ **Configuration Notice**:\n" + "\n".join(f"• {d}" for d in discrepancies))
+            st.warning("**Configuration Notice**:\n" + "\n".join(f"• {d}" for d in discrepancies))
 
         # Risk Forecast Controls (Confidence and Methodology)
-        st.markdown("#### Risk & Forecast Parameters")
+
         if page in ("3. Risk Analysis", "4. Model Validation"):
             def _format_confidence(c: float | str) -> str:
                 try:
@@ -186,7 +137,6 @@ def main() -> None:
         else:
             selected_confidence = 0.95
             selected_method = "historical"
-            st.caption("ℹ️ *Risk methodology controls apply to Risk Analysis and Model Validation views.*")
 
         # Evaluation Date Filtering (Used on Model Validation page)
         eval_start_date = None
@@ -227,6 +177,8 @@ def main() -> None:
 
         st.markdown("---")
 
+        st.caption("Appearance: ⋮ → Settings → Theme. Choose Light, Dark, or system preference.")
+
         # Data Status & Cutoffs Panel
         try:
             cutoffs = load_data_cutoffs()
@@ -245,7 +197,7 @@ def main() -> None:
             pass
 
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔄 Reload Results Cache", help="Clears cached tables and reloads output CSV/JSON files from disk.", key="btn_reload_cache"):
+        if st.button("Reload Results Cache", help="Clears cached tables and reloads output CSV/JSON files from disk.", key="btn_reload_cache"):
             clear_app_cache()
             st.success("Cache cleared! Reloaded analytical outputs.")
             st.rerun()

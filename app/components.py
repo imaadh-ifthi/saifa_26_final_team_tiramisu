@@ -23,7 +23,7 @@ def render_basis_badge(basis_label: str) -> None:
     is_oos = "Out-of-sample" in basis_label or "Frozen" in basis_label
     bg_color = PALETTE["blue_light"] if is_oos else PALETTE["teal_light"]
     text_color = PALETTE["blue"] if is_oos else PALETTE["teal"]
-    border_color = "#93c5fd" if is_oos else "#99f6e4"
+    border_color = PALETTE["blue"] if is_oos else PALETTE["teal"]
 
     st.markdown(
         f"""
@@ -37,23 +37,9 @@ def render_basis_badge(basis_label: str) -> None:
 
 def render_callout(text: str, level: str = "info") -> None:
     """Render an institutional callout alert box."""
-    if level == "warning":
-        bg, border, text_color, icon = PALETTE["amber_light"], PALETTE["amber"], "#92400e", "⚠️"
-    elif level == "danger" or level == "error":
-        bg, border, text_color, icon = PALETTE["red_light"], PALETTE["red"], "#991b1b", "🚨"
-    elif level == "success":
-        bg, border, text_color, icon = PALETTE["green_light"], PALETTE["green"], "#166534", "✓"
-    else:  # info
-        bg, border, text_color, icon = PALETTE["light_bg"], PALETTE["border"], PALETTE["navy"], "ℹ️"
-
-    st.markdown(
-        f"""
-        <div style="background-color: {bg}; border-left: 4px solid {border}; border-radius: 4px; padding: 0.75rem 1rem; margin: 0.75rem 0; color: {text_color}; font-size: 0.9rem; line-height: 1.45;">
-            <span style="margin-right: 0.5rem; font-weight: bold;">{icon}</span> {text}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    renderer = {"warning": st.warning, "danger": st.error, "error": st.error,
+                "success": st.success}.get(level, st.info)
+    renderer(text)
 
 
 def render_traffic_light_badge(traffic_status: str, exceptions: int | None = None, observations: int | None = None) -> None:
@@ -86,7 +72,7 @@ def render_download_button(df: pd.DataFrame, filename: str, label: str = "Downlo
     """Render a clean CSV download button."""
     csv_bytes = df.to_csv(index=False).encode("utf-8")
     st.download_button(
-        label=f"📥 {label}",
+        label=label,
         data=csv_bytes,
         file_name=filename,
         mime="text/csv",

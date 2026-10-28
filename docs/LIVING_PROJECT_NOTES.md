@@ -96,3 +96,7 @@
 - See [TRAINING_START_COMPARISON.md](TRAINING_START_COMPARISON.md) for before/after weights and scenario losses.
 
 | 2026-10-27 | Codex | Ran configured pipeline; target 6.50%, expected return 7.66%, volatility 8.57% | outputs/, docs/ | Record reproducible results |
+
+
+## TiraMisU presentation patch — 2026-10-29
+Native light/dark presentation, branding, overview shortcuts, accessible theme tokens and theme tests added. See TIRAMISU_UI_PATCH.md for scope and verification limits.

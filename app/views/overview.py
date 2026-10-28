@@ -4,6 +4,7 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 
+from app.design import render_intro, render_decision_routes
 from app.components import render_header, render_callout, render_basis_badge
 from app.data_access import (
     load_selected_portfolio,
@@ -20,6 +21,8 @@ from app.schemas import PortfolioBasis, PALETTE, ASSET_REGISTRY
 
 def render_overview_view() -> None:
     """Render the executive summary overview view."""
+    render_intro()
+    render_decision_routes()
     render_header(
         "Executive Overview",
         "Portfolio construction, risk measurement and validation for the Serendib University Endowment.",
@@ -73,69 +76,70 @@ def render_overview_view() -> None:
 
     st.markdown("---")
 
-    # Realized vs Expected Return Distinction Callout
-    c_left, c_right = st.columns([1, 1])
-    with c_left:
-        st.markdown(
-            f"""
-            <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 8px; padding: 1.25rem;">
-                <h4 style="color: {PALETTE['navy']}; margin-top: 0; margin-bottom: 0.75rem; font-size: 1.1rem;">
-                    Optimization & Expected Estimates
-                </h4>
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
-                    <tr style="border-bottom: 1px solid {PALETTE['border']};">
-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Target Return Constraint</td>
-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(target_return, 2)}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid {PALETTE['border']};">
-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Estimated Annual Return (Model)</td>
-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['teal']};">{format_percent(expected_return, 2)}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid {PALETTE['border']};">
-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Estimated Volatility (Covariance)</td>
-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(optimizer_vol, 2)}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Optimization Objective</td>
-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">Target-Return Minimum Variance</td>
-                    </tr>
-                </table>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    with st.expander("Compare model estimates with historical results", expanded=False):
+        # Realized vs Expected Return Distinction Callout
+        c_left, c_right = st.columns([1, 1])
+        with c_left:
+            st.markdown(
+                f"""
+                <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 8px; padding: 1.25rem;">
+                    <h4 style="color: {PALETTE['navy']}; margin-top: 0; margin-bottom: 0.75rem; font-size: 1.1rem;">
+                        Optimization & Expected Estimates
+                    </h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
+                        <tr style="border-bottom: 1px solid {PALETTE['border']};">
+                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Target Return Constraint</td>
+                            <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(target_return, 2)}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid {PALETTE['border']};">
+                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Estimated Annual Return (Model)</td>
+                            <td style="text-align: right; font-weight: 600; color: {PALETTE['teal']};">{format_percent(expected_return, 2)}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid {PALETTE['border']};">
+                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Estimated Volatility (Covariance)</td>
+                            <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(optimizer_vol, 2)}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Optimization Objective</td>
+                            <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">Target-Return Minimum Variance</td>
+                        </tr>
+                    </table>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-    with c_right:
-        st.markdown(
-            f"""
-            <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 8px; padding: 1.25rem;">
-                <h4 style="color: {PALETTE['navy']}; margin-top: 0; margin-bottom: 0.75rem; font-size: 1.1rem;">
-                    Realized Historical Performance (2007–2026)
-                </h4>
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
-                    <tr style="border-bottom: 1px solid {PALETTE['border']};">
-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Realized Compound Annual Return</td>
-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(realized_return, 2)}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid {PALETTE['border']};">
-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Realized Annual Volatility</td>
-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(realized_vol, 2)}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid {PALETTE['border']};">
-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Historical Maximum Drawdown</td>
-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['red']};">{format_percent(max_dd, 2)}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 6px 0; color: {PALETTE['muted']};">Realized Sharpe Ratio</td>
-                        <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{sharpe:.2f} (rf = {format_percent(float(kpi_summary.get('annualized_risk_free', 0.0422)), 2)})</td>
-                    </tr>
-                </table>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        with c_right:
+            st.markdown(
+                f"""
+                <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 8px; padding: 1.25rem;">
+                    <h4 style="color: {PALETTE['navy']}; margin-top: 0; margin-bottom: 0.75rem; font-size: 1.1rem;">
+                        Realized Historical Performance (2007–2026)
+                    </h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
+                        <tr style="border-bottom: 1px solid {PALETTE['border']};">
+                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Realized Compound Annual Return</td>
+                            <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(realized_return, 2)}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid {PALETTE['border']};">
+                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Realized Annual Volatility</td>
+                            <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{format_percent(realized_vol, 2)}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid {PALETTE['border']};">
+                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Historical Maximum Drawdown</td>
+                            <td style="text-align: right; font-weight: 600; color: {PALETTE['red']};">{format_percent(max_dd, 2)}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; color: {PALETTE['muted']};">Realized Sharpe Ratio</td>
+                            <td style="text-align: right; font-weight: 600; color: {PALETTE['navy']};">{sharpe:.2f} (rf = {format_percent(float(kpi_summary.get('annualized_risk_free', 0.0422)), 2)})</td>
+                        </tr>
+                    </table>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-    st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
 
     # Current Allocation Summary
     st.subheader("Current Proposed Asset Allocation")
@@ -146,7 +150,7 @@ def render_overview_view() -> None:
         with cols[idx]:
             st.markdown(
                 f"""
-                <div style="background-color: white; border: 1px solid {PALETTE['border']}; border-top: 4px solid {row.color}; border-radius: 6px; padding: 0.75rem 0.5rem; text-align: center;">
+                <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-top: 4px solid {row.color}; border-radius: 6px; padding: 0.75rem 0.5rem; text-align: center;">
                     <div style="font-size: 1.15rem; font-weight: 800; color: {PALETTE['navy']};">{row.asset}</div>
                     <div style="font-size: 0.78rem; color: {PALETTE['muted']}; margin-bottom: 0.35rem;">{row.category}</div>
                     <div style="font-size: 1.2rem; font-weight: 700; color: {PALETTE['navy']};">{format_percent(row.weight, 1)}</div>
@@ -213,64 +217,3 @@ def render_overview_view() -> None:
         level="info",
     )
 
-    # Navigation Guide Cards
-    st.markdown("### Committee Decision Navigation")
-    n1, n2, n3 = st.columns(3)
-    with n1:
-        st.markdown(
-            f"""
-            <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 1rem; height: 100%;">
-                <h5 style="color: {PALETTE['navy']}; margin: 0 0 0.5rem 0;">1. Where is the money invested?</h5>
-                <p style="font-size: 0.85rem; color: {PALETTE['muted']}; margin: 0 0 0.5rem 0;">View position weights, dollar amounts, broad asset class exposures, and cumulative growth charts.</p>
-                <span style="font-size: 0.82rem; font-weight: 600; color: {PALETTE['teal']};">→ Explore Portfolio & Performance</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with n2:
-        st.markdown(
-            f"""
-            <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 1rem; height: 100%;">
-                <h5 style="color: {PALETTE['navy']}; margin: 0 0 0.5rem 0;">2. How much could it lose?</h5>
-                <p style="font-size: 0.85rem; color: {PALETTE['muted']}; margin: 0 0 0.5rem 0;">Review Value at Risk (VaR) and Expected Shortfall (ES) across Historical, EWMA, Bootstrap, and EVT models.</p>
-                <span style="font-size: 0.82rem; font-weight: 600; color: {PALETTE['teal']};">→ Explore Risk Analysis</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with n3:
-        st.markdown(
-            f"""
-            <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 1rem; height: 100%;">
-                <h5 style="color: {PALETTE['navy']}; margin: 0 0 0.5rem 0;">3. How reliable are forecasts?</h5>
-                <p style="font-size: 0.85rem; color: {PALETTE['muted']}; margin: 0 0 0.5rem 0;">Examine out-of-sample backtesting, Kupiec tests, Christoffersen independence, and Basel traffic lights.</p>
-                <span style="font-size: 0.82rem; font-weight: 600; color: {PALETTE['teal']};">→ Explore Model Validation</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    n4, n5, _ = st.columns([1, 1, 1])
-    with n4:
-        st.markdown(
-            f"""
-            <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 1rem; height: 100%;">
-                <h5 style="color: {PALETTE['navy']}; margin: 0 0 0.5rem 0;">4. What happens during crises?</h5>
-                <p style="font-size: 0.85rem; color: {PALETTE['muted']}; margin: 0 0 0.5rem 0;">Simulate GFC 2008, COVID crash, 2022 rate shocks, and examine Euler risk contributions by asset.</p>
-                <span style="font-size: 0.82rem; font-weight: 600; color: {PALETTE['teal']};">→ Explore Stress & Risk Contributions</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with n5:
-        st.markdown(
-            f"""
-            <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 1rem; height: 100%;">
-                <h5 style="color: {PALETTE['navy']}; margin: 0 0 0.5rem 0;">5. What assumptions were made?</h5>
-                <p style="font-size: 0.85rem; color: {PALETTE['muted']}; margin: 0 0 0.5rem 0;">Review data governance, ADF stationarity, missing price handling, and critical analytical limitations.</p>
-                <span style="font-size: 0.82rem; font-weight: 600; color: {PALETTE['teal']};">→ Explore Assumptions & Quality</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )

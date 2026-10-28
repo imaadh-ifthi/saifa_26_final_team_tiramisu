@@ -44,3 +44,7 @@ This run report describes the original analytical pipeline. Later experiments re
   - Implemented comprehensive test coverage across `tests/test_app_data_access.py`, `tests/test_app_integration.py`, `tests/test_app_scenarios.py` (all 20 checklist scenarios), and `tests/test_app_views_apptest.py` (Streamlit `AppTest` multi-page navigation). **All 87 tests pass**.
   - Launched Streamlit server locally and performed visual browser verification across all 6 views with browser subagent recording `app_verification_1793209219308.webp`. Confirmed zero runtime exceptions, clean institutional styling, honest collapsed frontier presentation, and fully working controls.
   - Documented application architecture and test inventory in `docs/STREAMLIT_APP.md` and updated `README.md` and `docs/LIVING_PROJECT_NOTES.md`.
+
+
+## TiraMisU presentation patch — 2026-10-29
+Native light/dark presentation, branding, overview shortcuts, accessible theme tokens and theme tests added. See TIRAMISU_UI_PATCH.md for scope and verification limits.

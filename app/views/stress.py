@@ -43,9 +43,9 @@ def render_stress_view() -> None:
     risk_contribs = load_risk_contributions()
 
     tab_crises, tab_hypothetical, tab_contributions = st.tabs([
-        "🌪️ Historical Crisis Replays",
-        "⚡ Hypothetical Stagflation Shock",
-        "⚖️ Position Risk Contributions",
+        "Historical Crisis Replays",
+        "Hypothetical Stagflation Shock",
+        "Position Risk Contributions",
     ])
 
     with tab_crises:
@@ -157,10 +157,10 @@ def render_stress_view() -> None:
         sum_pnl_contrib = float(shock_contribs["pnl_contribution_usd"].sum())
         pnl_reconciled = np.isclose(sum_pnl_contrib, hypo_pnl, atol=1.0)
         reconcile_text = (
-            f"✓ Reconciled: Sum of position P&L contributions ({format_currency(sum_pnl_contrib, 0)}) "
+            f"Reconciled: Sum of position P&L contributions ({format_currency(sum_pnl_contrib, 0)}) "
             f"matches total scenario P&L ({format_currency(hypo_pnl, 0)})."
             if pnl_reconciled
-            else f"⚠️ Discrepancy: Sum of contributions ({format_currency(sum_pnl_contrib, 0)}) does not match scenario total ({format_currency(hypo_pnl, 0)})."
+            else f"Discrepancy: Sum of contributions ({format_currency(sum_pnl_contrib, 0)}) does not match scenario total ({format_currency(hypo_pnl, 0)})."
         )
         st.caption(reconcile_text)
 
@@ -238,7 +238,7 @@ def render_stress_view() -> None:
         st.dataframe(rc_table, use_container_width=True, hide_index=True)
         render_download_button(subset_rc, f"risk_contributions_{contrib_method}_{int(contrib_conf*100)}.csv", "Export Risk Contributions CSV")
 
-        with st.expander("ℹ️ Understanding Portfolio Weight vs. Risk Share (Preserving Negative Signs)"):
+        with st.expander("Understanding Portfolio Weight vs. Risk Share (Preserving Negative Signs)"):
             st.markdown(
                 """
                 - **Weight vs Risk Share**: An asset's portfolio weight does not equal its risk contribution. For example, **AGG represents 45.0% of portfolio capital**, but contributes a far smaller or even negative share to short-horizon tail risk due to low correlation with equities.
