@@ -1,0 +1,13 @@
+method,gates_passed,gates_total,failed_gates,score,complexity,rank
+gjrx_vix_evt_d1000,6,6,none,-4.536254551147624,3,1
+ms_gjr_t_m1000,6,6,none,-4.524857105357242,5,2
+gjrx_range_evt_m1000,6,6,none,-4.507082710801757,3,3
+gjr_evt_m500,6,6,none,-4.5046894971723255,1,4
+gjr_evt_d500,6,6,none,-4.5043554676137605,2,5
+gjrx_range_evt_d1000,6,6,none,-4.50138138241191,3,6
+gjrx_vix_evt_m1000,5,6,dq_p@0.99 (p=0.00249),-4.5364484222404515,3,7
+gjr_evt_m1000,5,6,conditional_coverage_p_value@0.95 (p=0.0141),-4.503641915027347,1,8
+har_range_evt_m1000,5,6,conditional_coverage_p_value@0.95 (p=0.0425),-4.472002564411471,3,9
+asset_fhs_evt_m1000,4,6,conditional_coverage_p_value@0.95 (p=0.0145); dq_p@0.95 (p=0.0224),-4.504449706530093,4,10
+gjr_evt_d1000,4,6,conditional_coverage_p_value@0.95 (p=0.00864); dq_p@0.95 (p=0.0325),-4.50045804889051,2,11
+asset_dcc_evt_m1000,4,6,conditional_coverage_p_value@0.95 (p=0.01); dq_p@0.95 (p=0.0253),-4.493113889658652,5,12

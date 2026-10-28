@@ -1,0 +1,39 @@
+# Settings for the investor decision layer (python -m experiments.crisis_response.decision).
+# Kept apart from config.yaml on purpose, so editing these never touches the frozen model choice.
+
+notional_usd: 10000000
+data_end: "2026-10-20"          # same cut-off as the rest of the project
+
+# Risk limits we ASSUME for the committee. The repo has no number from the client brief yet.
+# If the brief gives different limits, change them here and re-run; the memo updates itself.
+risk_limits:
+  es_confidence: 0.975          # Basel / FRTB standard level for ES
+  daily_es_limit_pct: 0.020     # 1-day 97.5% ES must stay below 2.0% of the portfolio ($200k)
+  stress_loss_tolerance_pct: 0.20   # no stress scenario (peak-to-trough) should lose more than 20%
+
+trade_step: 0.05                # size of each "sell A, buy B" trade in the menu (5% of the portfolio)
+
+# Historical crisis paths, replayed with today's weights and daily rebalancing.
+historical_scenarios:
+  - {name: "2008 Global Financial Crisis", start: "2008-01-01", end: "2009-03-09"}
+  - {name: "March 2020 COVID crash", start: "2020-02-19", end: "2020-03-23"}
+  - {name: "2022 rate-hiking drawdown", start: "2022-01-01", end: "2022-12-30"}
+
+# Our own hypothetical scenario. It hits exactly where this portfolio is weak: 60% of it sits
+# in "safe" assets (AGG and GLD), and March 2020 showed those can fall together with stocks.
+# Shocks are over about 10 trading days. Each one is anchored to the worst real 10-day move
+# in our data (2007-2026, adjusted prices):
+#   equities  80-90% of their worst 10-day fall (Oct 2008 / Mar 2020)
+#   AGG       -6%, about 70% of its Mar 2020 fall (-8.6%) and 60% of Oct 2008 (-10.1%)
+#   GLD       -10%, close to the Mar 2020 liquidation (-12.3%)
+#   XLE       -30%, about 60% of its Mar 2020 collapse (-48.7%)
+hypothetical_scenario:
+  name: "Hedge failure: dash for cash 2.0"
+  description: >-
+    Stocks crash while bonds and gold are sold for cash at the same time, like 9-18 March 2020
+    but with all assets hit together. Assumed shocks, not a forecast.
+  shocks: {SPY: -0.22, EFA: -0.24, EEM: -0.28, AGG: -0.06, GLD: -0.10, XLE: -0.30, XLK: -0.21}
+
+# Reverse stress test: S&P 500 fall that would make the portfolio lose the tolerance above,
+# when every asset moves like it did on the worst 5% of S&P days since 2007 (crisis betas).
+reverse_stress_quantile: 0.05
