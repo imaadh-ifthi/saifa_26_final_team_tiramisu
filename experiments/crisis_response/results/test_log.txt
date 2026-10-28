@@ -1,0 +1,14 @@
+test run 2018-01-02 .. 2026-10-20; frozen winner gjrx_vix_evt_d1000
+  finished gjr_evt_m1000: 2212 days
+  finished gjr_evt_d1000: 2212 days
+  finished gjr_evt_m500: 2212 days
+  finished gjr_evt_d500: 2212 days
+  finished gjrx_vix_evt_m1000: 2212 days
+  finished gjrx_vix_evt_d1000: 2212 days
+  finished gjrx_range_evt_m1000: 2212 days
+  finished gjrx_range_evt_d1000: 2212 days
+  finished har_range_evt_m1000: 2212 days
+  finished asset_fhs_evt_m1000: 2212 days
+  finished asset_dcc_evt_m1000: 2212 days
+  finished ms_gjr_t_m1000: 2212 days
+done: /Users/bhaveenthankajanikanth/Documents/Saifa/saifa_26_final_team_tiramisu/experiments/crisis_response/results/test/RESULTS.md

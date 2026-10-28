@@ -1,0 +1,78 @@
+# Crisis-response experiment. Everything here was written BEFORE any development or test results.
+# Step 1 (dev):  python -m experiments.crisis_response.run --stage dev
+#   runs every candidate on 2011-2017 only, applies the rule below, and writes frozen_choice.yaml
+# Step 2 (test): python -m experiments.crisis_response.run --stage test
+#   reads frozen_choice.yaml and evaluates once on 2018-01-02 .. 2026-10-20
+
+periods:
+  dev_start: "2011-01-03"     # first forecast day of development (inside training; includes Aug 2011)
+  dev_end: "2017-12-29"       # last training day
+  test_start: "2018-01-02"
+  test_end: "2026-10-20"
+
+confidences: [0.90, 0.95, 0.975, 0.99]
+
+# Candidates. "gjr_evt_m1000" is Bhavee's current best model, run through the new engine.
+# m = monthly refit (every 21 days), d = daily refit. All use a GPD on the worst 10% of shocks,
+# except ms_gjr_t, which is a pure two-regime Student-t model.
+candidates:
+  - {name: gjr_evt_m1000,       filter: gjr,        window: 1000, refit_every: 21, complexity: 1}
+  - {name: gjr_evt_d1000,       filter: gjr,        window: 1000, refit_every: 1,  complexity: 2}
+  - {name: gjr_evt_m500,        filter: gjr,        window: 500,  refit_every: 21, complexity: 1}
+  - {name: gjr_evt_d500,        filter: gjr,        window: 500,  refit_every: 1,  complexity: 2}
+  - {name: gjrx_vix_evt_m1000,  filter: gjrx_vix,   window: 1000, refit_every: 21, complexity: 3}
+  - {name: gjrx_vix_evt_d1000,  filter: gjrx_vix,   window: 1000, refit_every: 1,  complexity: 3}
+  - {name: gjrx_range_evt_m1000, filter: gjrx_range, window: 1000, refit_every: 21, complexity: 3}
+  - {name: gjrx_range_evt_d1000, filter: gjrx_range, window: 1000, refit_every: 1,  complexity: 3}
+  - {name: har_range_evt_m1000, filter: har_range,  window: 1000, refit_every: 21, complexity: 3}
+  - {name: asset_fhs_evt_m1000, filter: asset_fhs,  window: 1000, refit_every: 21, complexity: 4}
+  - {name: asset_dcc_evt_m1000, filter: asset_dcc,  window: 1000, refit_every: 21, complexity: 5}
+  - {name: ms_gjr_t_m1000,      filter: ms_gjr,     window: 1000, refit_every: 21, complexity: 5}
+
+reference: gjr_evt_m1000
+
+# How the winner is picked on the development period. Nothing else is looked at.
+selection:
+  # gates: a candidate must not be rejected (p >= 0.05) by any of these on 2011-2017
+  gates:
+    - {confidence: 0.95, test: conditional_coverage_p_value}
+    - {confidence: 0.95, test: dq_p}
+    - {confidence: 0.99, test: conditional_coverage_p_value}
+    - {confidence: 0.99, test: dq_p}
+    - {confidence: 0.975, test: de_ues_p}
+    - {confidence: 0.975, test: mf_p}
+  gate_level: 0.05
+  # score: average of mean FZ0 loss at 95%, 97.5% and 99% (lower is better)
+  score_confidences: [0.95, 0.975, 0.99]
+  # winner = lowest score among candidates passing every gate.
+  # If none passes every gate: most gates passed, then lowest score.
+  # Exact ties (score within 1e-6): lower complexity wins.
+
+tests:
+  significance: 0.05
+  de_lags: 5
+  dq_lags: 4
+  monte_carlo_sims: 5000
+  multinomial_base: 0.975
+  multinomial_levels: 4
+  mcs_level: 0.10
+  mcs_bootstrap: 2000
+  mcs_block: 10
+
+# Reporting windows. Fixed here before the test run; they are only for reporting, never for choosing.
+report:
+  dev_stress_windows:
+    - {name: "US downgrade / euro crisis", start: "2011-07-25", end: "2011-10-31"}
+    - {name: "China devaluation / oil crash", start: "2015-08-10", end: "2016-02-29"}
+  test_windows:
+    - {name: "COVID crash", start: "2020-02-20", end: "2020-04-30"}
+    - {name: "All of 2020", start: "2020-01-01", end: "2020-12-31"}
+    - {name: "2022 rate hikes", start: "2022-01-01", end: "2022-12-31"}
+  # a calendar year counts as calm when its average VIX close is below this level
+  calm_year_vix_below: 20
+
+# Saved forecasts from earlier work, put on the same tables for comparison
+saved_models:
+  - {file: ../layers345_upgrade/results/garch_family_forecasts.csv.gz, methods: [gjr_evt], rename: {gjr_evt: gjr_evt_saved}}
+  - {file: ../improved_risk/results/filtered_response/daily_forecasts.csv.gz, methods: [filtered_historical_alert]}
+  - {file: ../improved_risk/results/evt_response/daily_forecasts.csv.gz, methods: [filtered_evt_cusum]}
