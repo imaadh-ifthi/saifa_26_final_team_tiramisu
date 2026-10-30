@@ -17,13 +17,13 @@ class AssetInfo(NamedTuple):
 
 
 ASSET_REGISTRY: dict[str, AssetInfo] = {
-    "SPY": AssetInfo("SPY", "SPDR S&P 500 ETF Trust", "US Large-Cap Equity", "Equity", "#5585bd"),
-    "EFA": AssetInfo("EFA", "iShares MSCI EAFE ETF", "Developed Markets Equity", "Equity", "#6987d5"),
-    "EEM": AssetInfo("EEM", "iShares MSCI Emerging Markets ETF", "Emerging Markets Equity", "Equity", "#56a9bf"),
+    "SPY": AssetInfo("SPY", "SPDR S&P 500 ETF Trust", "US Large-Cap Equity", "Equity", "#2563eb"),
+    "EFA": AssetInfo("EFA", "iShares MSCI EAFE ETF", "Developed Markets Equity", "Equity", "#2563eb"),
+    "EEM": AssetInfo("EEM", "iShares MSCI Emerging Markets ETF", "Emerging Markets Equity", "Equity", "#2563eb"),
     "AGG": AssetInfo("AGG", "iShares Core U.S. Aggregate Bond ETF", "US Investment Grade Fixed Income", "Fixed Income", "#0d9488"),
     "GLD": AssetInfo("GLD", "SPDR Gold Shares", "Gold Bullion / Real Assets", "Real Assets", "#d97706"),
-    "XLE": AssetInfo("XLE", "Energy Select Sector SPDR Fund", "US Energy Sector Equity", "Equity", "#dc2626"),
-    "XLK": AssetInfo("XLK", "Technology Select Sector SPDR Fund", "US Technology Sector Equity", "Equity", "#a581cc"),
+    "XLE": AssetInfo("XLE", "Energy Select Sector SPDR Fund", "US Energy Sector Equity", "Equity", "#2563eb"),
+    "XLK": AssetInfo("XLK", "Technology Select Sector SPDR Fund", "US Technology Sector Equity", "Equity", "#2563eb"),
 }
 
 METHOD_LABELS: dict[str, str] = {

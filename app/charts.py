@@ -15,14 +15,14 @@ def apply_institutional_layout(fig: go.Figure, title: str = "", height: int = 42
     fig.update_layout(
         title={
             "text": f"<b>{title}</b>" if title else "",
-            "font": {"size": 15, "color": PALETTE["navy"], "family": "Inter, -apple-system, sans-serif"},
+            "font": {"size": 15, "color": PALETTE["navy"], "family": "Inter, sans-serif"},
             "x": 0.01,
             "xanchor": "left",
         },
         template="plotly_dark" if theme_name() == "dark" else "plotly_white",
         paper_bgcolor=PALETTE["card_bg"],
         plot_bgcolor=PALETTE["light_bg"],
-        font={"family": "Inter, -apple-system, sans-serif", "color": PALETTE["navy"], "size": 12},
+        font={"family": "Inter, sans-serif", "color": PALETTE["navy"], "size": 12},
         height=height,
         margin={"l": 50, "r": 30, "t": 45 if title else 25, "b": 45},
         legend={
@@ -32,7 +32,7 @@ def apply_institutional_layout(fig: go.Figure, title: str = "", height: int = 42
             "xanchor": "right",
             "x": 1.0,
             "font": {"size": 11},
-            "bgcolor": PALETTE["card_bg"],
+            "bgcolor": "rgba(0, 0, 0, 0)",
         },
         hovermode="x unified",
     )
@@ -77,6 +77,7 @@ def plot_allocation_donut(weights_df: pd.DataFrame) -> go.Figure:
             hoverinfo="text",
             textfont={"size": 12},
             sort=False,
+            automargin=True,
         )
     ])
     fig.update_layout(
@@ -84,9 +85,15 @@ def plot_allocation_donut(weights_df: pd.DataFrame) -> go.Figure:
         showlegend=True,
         template="plotly_dark" if theme_name() == "dark" else "plotly_white",
         paper_bgcolor=PALETTE["card_bg"],
-        height=360,
-        margin={"l": 20, "r": 20, "t": 20, "b": 20},
-        legend={"orientation": "h", "yanchor": "bottom", "y": -0.15, "xanchor": "center", "x": 0.5},
+        height=380,
+        margin={"l": 20, "r": 20, "t": 20, "b": 65},
+        legend={
+            "orientation": "h",
+            "yanchor": "top",
+            "y": -0.06,
+            "xanchor": "center",
+            "x": 0.5,
+        },
     )
     return fig
 
@@ -96,29 +103,45 @@ def plot_cumulative_wealth(perf_df: pd.DataFrame, notional: float = 10_000_000.0
     fig = go.Figure()
 
     port_wealth = perf_df["portfolio_wealth"] * notional
+    fill_col = "rgba(112, 216, 195, 0.08)" if theme_name() == "dark" else "rgba(8, 120, 109, 0.06)"
     fig.add_trace(go.Scatter(
         x=perf_df["date"],
         y=port_wealth,
         mode="lines",
         name="Portfolio Value",
-        line={"color": PALETTE["navy"], "width": 2.2},
+        fill="tozeroy",
+        fillcolor=fill_col,
+        line={"color": PALETTE["teal"], "width": 2.2},
         hovertemplate="Portfolio: %{y:$,.0f}<extra></extra>",
     ))
 
+    max_wealth = float(port_wealth.max())
+    min_wealth = float(port_wealth.min())
+
     if "policy_wealth" in perf_df.columns:
         policy_wealth = perf_df["policy_wealth"] * notional
+        max_wealth = max(max_wealth, float(policy_wealth.max()))
+        min_wealth = min(min_wealth, float(policy_wealth.min()))
         fig.add_trace(go.Scatter(
             x=perf_df["date"],
             y=policy_wealth,
             mode="lines",
-            name="Policy Benchmark (35% SPY, 10% EFA, 5% EEM, 40% AGG, 10% GLD)",
-            line={"color": PALETTE["slate"], "width": 1.8, "dash": "dash"},
+            name="Policy Benchmark (50/40/10: 35% SPY, 10% EFA, 5% EEM, 40% AGG, 10% GLD)",
+            line={"color": PALETTE["amber"], "width": 1.8, "dash": "dash"},
             hovertemplate="Benchmark: %{y:$,.0f}<extra></extra>",
         ))
 
-    fig = apply_institutional_layout(fig, "Portfolio Wealth Trajectory (USD 10 Million Initial Notional)", height=400)
-    fig.update_yaxes(title="Portfolio Value (USD)", tickformat="$,.0f")
-    fig.update_xaxes(title="Date")
+    # Clamp y-axis bottom to eliminate $0.0 dead space from fill='tozeroy'
+    y_bottom = min(notional * 0.75, min_wealth * 0.95)
+    y_top = max_wealth * 1.05
+
+    fig = apply_institutional_layout(fig, "Portfolio Wealth Trajectory (USD 10 Million Initial Notional)", height=390)
+    fig.update_yaxes(
+        title="Portfolio Value",
+        tickformat="$.2s",
+        range=[y_bottom, y_top],
+    )
+    fig.update_xaxes(title=None)
     return fig
 
 
@@ -149,31 +172,72 @@ def plot_drawdowns(perf_df: pd.DataFrame) -> go.Figure:
 
     fig = apply_institutional_layout(fig, "Portfolio Drawdown from Historical Peak (%)", height=320)
     fig.update_yaxes(title="Drawdown (%)", ticksuffix="%")
-    fig.update_xaxes(title="Date")
+    fig.update_xaxes(title=None)
     return fig
 
 
-def plot_efficient_frontier(frontier_df: pd.DataFrame, selected_target: float = 0.065) -> go.Figure:
-    """Plot efficient frontier or honest single minimum-variance point if collapsed (Current Allocation Scope)."""
+def plot_efficient_frontier(
+    frontier_df: pd.DataFrame,
+    selected_target: float = 0.065,
+    perf_df: pd.DataFrame | None = None,
+) -> go.Figure:
+    """Plot risk-return profile with constituent assets, policy benchmark, and mandate boundaries."""
     fig = go.Figure()
+
+    # 1. Plot individual constituent assets for risk-return context
+    try:
+        from .data_access import load_expected_returns, load_covariance_matrix
+        exp_ret_df = load_expected_returns()
+        cov_df = load_covariance_matrix()
+        asset_vols = [float(np.sqrt(cov_df.loc[a, a])) * 100.0 for a in exp_ret_df["asset"]]
+        asset_rets = [float(r) * 100.0 for r in exp_ret_df["expected_return"]]
+        asset_colors = [ASSET_REGISTRY[a].color if a in ASSET_REGISTRY else "#64748b" for a in exp_ret_df["asset"]]
+
+        fig.add_trace(go.Scatter(
+            x=asset_vols,
+            y=asset_rets,
+            mode="markers+text",
+            text=exp_ret_df["asset"].tolist(),
+            textposition=["top right", "bottom right", "top left", "bottom right", "top right", "top left", "top left"],
+            marker={"size": 10, "color": asset_colors, "line": {"color": PALETTE["card_bg"], "width": 1.5}},
+            name="Constituent Assets",
+            hovertemplate="<b>%{text}</b><br>Expected Return: %{y:.2f}%<br>Volatility: %{x:.2f}%<extra></extra>",
+        ))
+    except Exception:
+        pass
+
+    # 2. Plot Policy Benchmark if performance series is provided
+    if perf_df is not None and len(perf_df) > 0 and "policy_wealth" in perf_df.columns:
+        years = len(perf_df) / 252.0
+        bench_cagr = (float(perf_df["policy_wealth"].iloc[-1]) / float(perf_df["policy_wealth"].iloc[0])) ** (1.0 / years) - 1.0
+        bench_vol = float(perf_df["policy_return"].std() * np.sqrt(252))
+        fig.add_trace(go.Scatter(
+            x=[bench_vol * 100.0],
+            y=[bench_cagr * 100.0],
+            mode="markers+text",
+            text=["Policy Benchmark"],
+            textposition="top right",
+            marker={"size": 12, "color": PALETTE["amber"], "symbol": "square", "line": {"color": PALETTE["card_bg"], "width": 1.5}},
+            name="Policy Benchmark (50/40/10)",
+            hovertemplate="<b>Policy Benchmark (50/40/10)</b><br>Historical Return: %{y:.2f}%<br>Volatility: %{x:.2f}%<extra></extra>",
+        ))
 
     vols = frontier_df["volatility"].values
     returns = frontier_df["expected_return"].values
-
     is_collapsed = np.allclose(vols, vols[0], atol=1e-5) and np.allclose(returns, returns[0], atol=1e-5)
 
+    # 3. Plot Constrained Minimum-Variance Solution
     if is_collapsed:
-        # Plot single point clearly
         fig.add_trace(go.Scatter(
             x=[vols[0] * 100.0],
             y=[returns[0] * 100.0],
             mode="markers+text",
-            marker={"size": 16, "color": PALETTE["teal"], "symbol": "diamond"},
-            text=["Optimal Constrained Minimum-Variance Portfolio"],
+            marker={"size": 16, "color": PALETTE["teal"], "symbol": "diamond", "line": {"color": PALETTE["card_bg"], "width": 2}},
+            text=["Optimal Portfolio"],
             textposition="top center",
-            name="Constrained Minimum-Variance Solution",
+            name="Optimal Constrained Portfolio",
             hovertemplate=(
-                f"<b>Constrained Minimum-Variance Solution (Current Portfolio Scope)</b><br>"
+                f"<b>Optimal Constrained Minimum-Variance Portfolio</b><br>"
                 f"Expected Return: {returns[0]*100:.2f}%<br>"
                 f"Annual Volatility: {vols[0]*100:.2f}%<extra></extra>"
             ),
@@ -189,7 +253,39 @@ def plot_efficient_frontier(frontier_df: pd.DataFrame, selected_target: float = 
             hovertemplate="Vol: %{x:.2f}%<br>Exp Return: %{y:.2f}%<extra></extra>",
         ))
 
-    fig = apply_institutional_layout(fig, "Risk-Return Profile & Minimum Variance Solution (Current Allocation Scope)", height=360)
+    # 4. Reference lines for institutional mandate bounds
+    fig.add_hline(
+        y=selected_target * 100.0,
+        line_dash="dash",
+        line_color=PALETTE["amber"],
+        line_width=1.5,
+        annotation_text=f"Mandate Target ({selected_target*100:.1f}%)",
+        annotation_position="top right",
+        annotation_yshift=6,
+        annotation_font={"size": 10, "color": PALETTE["amber"]},
+    )
+    fig.add_vline(
+        x=10.0,
+        line_dash="dash",
+        line_color=PALETTE["red"],
+        line_width=1.5,
+        annotation_text="Volatility Limit (10.0%)",
+        annotation_position="top left",
+        annotation_xshift=-6,
+        annotation_font={"size": 10, "color": PALETTE["red"]},
+    )
+
+    fig = apply_institutional_layout(fig, "Risk-Return Profile & Minimum Variance Solution", height=390)
+    fig.update_layout(
+        margin={"l": 50, "r": 20, "t": 40, "b": 65},
+        legend={
+            "orientation": "h",
+            "yanchor": "top",
+            "y": -0.18,
+            "xanchor": "center",
+            "x": 0.5,
+        },
+    )
     fig.update_xaxes(title="Annualized Volatility (%)", ticksuffix="%")
     fig.update_yaxes(title="Expected Annual Return (%)", ticksuffix="%")
     return fig
@@ -207,7 +303,7 @@ def plot_var_es_time_series(forecasts_df: pd.DataFrame, method: str, confidence:
         y=subset["var_usd"],
         mode="lines",
         name=f"1-Day VaR ({int(confidence*100)}%)",
-        line={"color": PALETTE["teal"], "width": 1.8},
+        line={"color": PALETTE["teal"], "width": 2.0},
         hovertemplate="VaR: %{y:$,.0f}<extra></extra>",
     ))
 
@@ -216,14 +312,34 @@ def plot_var_es_time_series(forecasts_df: pd.DataFrame, method: str, confidence:
         y=subset["es_usd"],
         mode="lines",
         name=f"1-Day Expected Shortfall ({int(confidence*100)}%)",
-        line={"color": PALETTE["red"], "width": 1.8},
+        line={"color": PALETTE["red"], "width": 2.0},
         hovertemplate="ES: %{y:$,.0f}<extra></extra>",
     ))
 
-    method_label = METHOD_LABELS.get(method, method)
-    fig = apply_institutional_layout(fig, f"One-Day Risk Forecasts Over Time — {method_label} ({int(confidence*100)}% Confidence)", height=380)
-    fig.update_yaxes(title="1-Day Loss Forecast (USD)", tickformat="$,.0f")
-    fig.update_xaxes(title="Evaluation Date")
+    fig = apply_institutional_layout(fig, "", height=360)
+    fig.update_layout(
+        font={"family": "Inter, sans-serif", "size": 11, "color": PALETTE["navy"]},
+        margin={"l": 55, "r": 25, "t": 25, "b": 45},
+        legend={
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 1.02,
+            "xanchor": "right",
+            "x": 1.0,
+            "bgcolor": "rgba(0, 0, 0, 0)",
+        },
+    )
+    fig.update_yaxes(
+        title="1-Day Loss Forecast (USD)",
+        tickformat="$,.0f",
+        title_font={"size": 11, "family": "Inter, sans-serif", "color": PALETTE["navy"]},
+        tickfont={"size": 10, "family": "Inter, sans-serif"},
+    )
+    fig.update_xaxes(
+        title="Evaluation Date",
+        title_font={"size": 11, "family": "Inter, sans-serif", "color": PALETTE["navy"]},
+        tickfont={"size": 10, "family": "Inter, sans-serif"},
+    )
     return fig
 
 
@@ -250,9 +366,31 @@ def plot_var_method_comparison_bar(summary_df: pd.DataFrame, confidence: float) 
         hovertemplate="ES: %{y:$,.0f}<extra></extra>",
     ))
 
-    fig = apply_institutional_layout(fig, f"Latest 1-Day Loss Forecasts Across Methodologies ({int(confidence*100)}% Confidence)", height=360)
-    fig.update_layout(barmode="group")
-    fig.update_yaxes(title="Loss Forecast (USD)", tickformat="$,.0f")
+    fig = apply_institutional_layout(fig, "", height=360)
+    fig.update_layout(
+        barmode="group",
+        font={"family": "Inter, sans-serif", "size": 11, "color": PALETTE["navy"]},
+        margin={"l": 55, "r": 25, "t": 25, "b": 45},
+        legend={
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 1.02,
+            "xanchor": "right",
+            "x": 1.0,
+            "bgcolor": "rgba(0, 0, 0, 0)",
+            "font": {"family": "Inter, sans-serif", "size": 11, "color": PALETTE["navy"]},
+        },
+    )
+    fig.update_yaxes(
+        title="1-Day Loss Forecast (USD)",
+        tickformat="$,.0f",
+        title_font={"size": 11, "family": "Inter, sans-serif", "color": PALETTE["navy"]},
+        tickfont={"size": 10, "family": "Inter, sans-serif"},
+    )
+    fig.update_xaxes(
+        title_font={"size": 11, "family": "Inter, sans-serif", "color": PALETTE["navy"]},
+        tickfont={"size": 10, "family": "Inter, sans-serif"},
+    )
     return fig
 
 
@@ -307,6 +445,18 @@ def plot_validation_breaches(forecasts_df: pd.DataFrame, method: str, confidence
         f"Model Validation: Realized Losses vs VaR Threshold ({method_label}, {int(confidence*100)}%)",
         height=420,
     )
+    fig.update_layout(
+        margin=dict(t=70, b=45, l=50, r=30),
+        title=dict(y=0.96),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1.0,
+            bgcolor="rgba(255, 255, 255, 0.6)",
+        ),
+    )
     fig.update_yaxes(title="Realized Loss / (Gain) in USD", tickformat="$,.0f")
     fig.update_xaxes(title="Evaluation Date")
     return fig
@@ -358,7 +508,7 @@ def plot_stress_paths(paths_df: pd.DataFrame, scenario_name: str, notional: floa
         height=450,
         template="plotly_dark" if theme_name() == "dark" else "plotly_white",
         paper_bgcolor=PALETTE["card_bg"],
-        font={"family": "Inter, -apple-system, sans-serif", "color": PALETTE["navy"]},
+        font={"family": "Inter, sans-serif", "color": PALETTE["navy"]},
         showlegend=False,
         margin={"l": 60, "r": 30, "t": 40, "b": 30},
     )
@@ -386,8 +536,11 @@ def plot_hypothetical_shocks(contributions_df: pd.DataFrame) -> go.Figure:
         )
     ])
     fig = apply_institutional_layout(fig, "Position-Level Dollar P&L Contribution Under Assumed Stagflation Shock", height=350)
+    fig.update_layout(
+        margin=dict(l=190, r=30, t=50, b=45),
+    )
     fig.update_xaxes(title="P&L Contribution (USD)", tickformat="$,.0f")
-    fig.update_yaxes(autorange="reversed")
+    fig.update_yaxes(automargin=True, autorange="reversed")
     return fig
 
 
@@ -426,6 +579,9 @@ def plot_risk_contributions_diverging(contributions_df: pd.DataFrame, metric: st
         f"Euler {component_type} Risk Contribution by Position ({method_title}, {int(confidence*100)}% Confidence)",
         height=360,
     )
+    fig.update_layout(
+        margin=dict(l=190, r=30, t=50, b=45),
+    )
     fig.update_xaxes(title=metric_title, tickformat="$,.0f")
-    fig.update_yaxes(autorange="reversed")
+    fig.update_yaxes(automargin=True, autorange="reversed")
     return fig

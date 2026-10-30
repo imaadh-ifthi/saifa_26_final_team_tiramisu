@@ -30,8 +30,8 @@ def render_validation_view(
 ) -> None:
     """Render formal model validation, likelihood-ratio tests, and Basel traffic light."""
     render_header(
-        "Model Validation & Statistical Backtesting",
-        "Formal out-of-sample (OOS) statistical calibration tests and regulatory exception monitoring.",
+        "Model Reliability",
+        "Formal out-of-sample Model Validation: statistical calibration tests and regulatory exception monitoring.",
     )
 
     # Strictly locked to Frozen validation allocation
@@ -138,14 +138,16 @@ def render_validation_view(
         st.metric(
             label="Actual Exceptions",
             value=f"{actual_exceptions:,}",
-            delta=f"{actual_exceptions - expected_exceptions:+.1f} vs Expected ({expected_exceptions:.1f})",
+            delta=f"{actual_exceptions - expected_exceptions:+.1f} vs Exp ({expected_exceptions:.1f})",
+            delta_color="inverse",
             help="Number of days where realized portfolio loss exceeded forecast VaR.",
         )
     with s2:
         st.metric(
             label="Exception Rate",
             value=format_percent(observed_rate, 2),
-            delta=f"{format_percent(observed_rate - expected_rate, 2, include_sign=True)} vs Expected ({format_percent(expected_rate, 2)})",
+            delta=f"{format_percent(observed_rate - expected_rate, 2, include_sign=True)} vs Exp ({format_percent(expected_rate, 2)})",
+            delta_color="inverse",
             help="Realized breach proportion (exceptions / total observations).",
         )
     with s3:
@@ -153,7 +155,7 @@ def render_validation_view(
         kupiec_color = PALETTE["red"] if kupiec_reject else PALETTE["green"]
         st.markdown(
             f"""
-            <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
+            <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center; min-height: 118px; display: flex; flex-direction: column; justify-content: center;">
                 <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Kupiec POF (Coverage)</div>
                 <div style="font-size: 1.05rem; font-weight: 700; color: {kupiec_color}; margin: 0.25rem 0;">{kupiec_status}</div>
                 <div style="font-size: 0.78rem; color: {PALETTE['muted']};">LR = {test_results['kupiec_lr']:.2f} | p = {format_p_value(kupiec_p)}</div>
@@ -172,7 +174,7 @@ def render_validation_view(
             indep_sub = f"LR = {test_results['independence_lr']:.2f} | p = {format_p_value(indep_p)}"
         st.markdown(
             f"""
-            <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
+            <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center; min-height: 118px; display: flex; flex-direction: column; justify-content: center;">
                 <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Christoffersen Independence</div>
                 <div style="font-size: 1.05rem; font-weight: 700; color: {indep_color}; margin: 0.25rem 0;">{indep_text}</div>
                 <div style="font-size: 0.78rem; color: {PALETTE['muted']};">{indep_sub}</div>
@@ -191,7 +193,7 @@ def render_validation_view(
             cc_sub = f"LR = {test_results['conditional_coverage_lr']:.2f} | p = {format_p_value(cc_p)}"
         st.markdown(
             f"""
-            <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center;">
+            <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center; min-height: 118px; display: flex; flex-direction: column; justify-content: center;">
                 <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Joint Conditional Coverage</div>
                 <div style="font-size: 1.05rem; font-weight: 700; color: {cc_color}; margin: 0.25rem 0;">{cc_text}</div>
                 <div style="font-size: 0.78rem; color: {PALETTE['muted']};">{cc_sub}</div>
@@ -210,31 +212,85 @@ def render_validation_view(
     if is_filtered_window:
         st.caption("**Table Scope Notice**: This master table reports baseline results over the complete 2,212-day out-of-sample horizon. The metric cards above reflect your custom filtered date window.")
 
-    b_display = baseline_backtests.copy()
-    b_display["Method"] = b_display["method"].map(lambda m: METHOD_LABELS.get(m, m))
-    b_display["Confidence"] = b_display["confidence"].apply(lambda c: f"{int(c*100)}%")
-    b_display["Obs"] = b_display["observations"].apply(lambda o: f"{int(o):,}")
-    b_display["Breaches"] = b_display["exceptions"].apply(lambda x: f"{int(x):,}")
-    b_display["Breach Rate"] = b_display["exception_rate"].apply(lambda r: format_percent(r, 2))
-    b_display["Kupiec p-val"] = b_display["kupiec_p_value"].apply(lambda p: format_p_value(p))
-    b_display["Kupiec Outcome"] = b_display["kupiec_reject"].apply(lambda r: "Rejects at 5%" if r else "Does not reject at 5%")
-    b_display["Independence p-val"] = b_display["independence_p_value"].apply(lambda p: format_p_value(p) if np.isfinite(p) else "Unavailable")
-    b_display["Joint CC Outcome"] = b_display["conditional_coverage_reject"].apply(lambda r: "Rejects at 5%" if r else ("Does not reject at 5%" if r is not None else "Unavailable"))
-    b_display["Basel Zone"] = b_display["traffic_light"].apply(lambda t: t.upper())
+    # Institutional Custom HTML Master Calibration Table
+    rows_html = []
+    for idx, row in enumerate(baseline_backtests.itertuples()):
+        is_active = (row.method == selected_method and np.isclose(row.confidence, selected_confidence))
+        m_label = METHOD_LABELS.get(row.method, row.method)
+        active_pill = f'<span style="background-color: {PALETTE["teal"]}; color: #ffffff; font-size: 0.68rem; font-weight: 700; padding: 0.12rem 0.35rem; border-radius: 3px; margin-left: 0.4rem; vertical-align: middle;">★ Active</span>' if is_active else ""
+        
+        row_bg = PALETTE["teal_light"] if is_active else (PALETTE["light_bg"] if idx % 2 == 1 else PALETTE["card_bg"])
+        font_weight = "600" if is_active else "400"
+        border_left = f"border-left: 3px solid {PALETTE['teal']};" if is_active else "border-left: 3px solid transparent;"
+        
+        # Kupiec Outcome Pill
+        if row.kupiec_reject:
+            kupiec_pill = f'<span style="background-color: {PALETTE['red_light']}; color: {PALETTE['red']}; border: 1px solid rgba(179, 58, 58, 0.25); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; font-size: 0.74rem; white-space: nowrap;">✗ Reject (5%)</span>'
+        else:
+            kupiec_pill = f'<span style="background-color: {PALETTE['green_light']}; color: {PALETTE['green']}; border: 1px solid rgba(8, 120, 109, 0.25); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; font-size: 0.74rem; white-space: nowrap;">✓ Pass (5%)</span>'
+            
+        # Joint CC Pill
+        if row.conditional_coverage_reject is True:
+            cc_pill = f'<span style="background-color: {PALETTE['red_light']}; color: {PALETTE['red']}; border: 1px solid rgba(179, 58, 58, 0.25); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; font-size: 0.74rem; white-space: nowrap;">✗ Reject (5%)</span>'
+        elif row.conditional_coverage_reject is False:
+            cc_pill = f'<span style="background-color: {PALETTE['green_light']}; color: {PALETTE['green']}; border: 1px solid rgba(8, 120, 109, 0.25); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; font-size: 0.74rem; white-space: nowrap;">✓ Pass (5%)</span>'
+        else:
+            cc_pill = f'<span style="color: {PALETTE['muted']}; font-size: 0.75rem;">Unavailable</span>'
+            
+        # Basel Zone Badge
+        t_light = str(row.traffic_light).lower()
+        if t_light == "green":
+            basel_pill = f'<span style="background-color: {PALETTE['green_light']}; color: {PALETTE['green']}; border: 1px solid rgba(8, 120, 109, 0.25); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; font-size: 0.74rem; white-space: nowrap;">● Green Zone</span>'
+        elif t_light in ("yellow", "amber"):
+            basel_pill = f'<span style="background-color: {PALETTE['amber_light']}; color: {PALETTE['amber']}; border: 1px solid rgba(217, 119, 6, 0.25); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; font-size: 0.74rem; white-space: nowrap;">● Yellow Zone</span>'
+        elif t_light == "red":
+            basel_pill = f'<span style="background-color: {PALETTE['red_light']}; color: {PALETTE['red']}; border: 1px solid rgba(179, 58, 58, 0.25); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; font-size: 0.74rem; white-space: nowrap;">● Red Zone</span>'
+        else:
+            basel_pill = f'<span style="color: {PALETTE['muted']}; font-size: 0.75rem;">N/A (99% Only)</span>'
+            
+        ind_p_val = format_p_value(row.independence_p_value) if np.isfinite(row.independence_p_value) else "—"
+        
+        rows_html.append(f'''
+        <tr style="background-color: {row_bg}; font-weight: {font_weight}; border-bottom: 1px solid {PALETTE['border']}; {border_left}">
+            <td style="padding: 0.5rem 0.6rem; text-align: left; white-space: nowrap;">{m_label}{active_pill}</td>
+            <td style="padding: 0.5rem 0.4rem; text-align: center; white-space: nowrap;">{int(row.confidence * 100)}%</td>
+            <td style="padding: 0.5rem 0.4rem; text-align: right; white-space: nowrap;">{int(row.observations):,}</td>
+            <td style="padding: 0.5rem 0.4rem; text-align: right; white-space: nowrap;">{int(row.exceptions):,}</td>
+            <td style="padding: 0.5rem 0.45rem; text-align: right; white-space: nowrap;">{format_percent(row.exception_rate, 2)}</td>
+            <td style="padding: 0.5rem 0.45rem; text-align: right; white-space: nowrap;">{format_p_value(row.kupiec_p_value)}</td>
+            <td style="padding: 0.5rem 0.5rem; text-align: center; white-space: nowrap;">{kupiec_pill}</td>
+            <td style="padding: 0.5rem 0.45rem; text-align: right; white-space: nowrap;">{ind_p_val}</td>
+            <td style="padding: 0.5rem 0.5rem; text-align: center; white-space: nowrap;">{cc_pill}</td>
+            <td style="padding: 0.5rem 0.5rem; text-align: center; white-space: nowrap;">{basel_pill}</td>
+        </tr>
+        ''')
 
-    master_cols = [
-        "Method",
-        "Confidence",
-        "Obs",
-        "Breaches",
-        "Breach Rate",
-        "Kupiec p-val",
-        "Kupiec Outcome",
-        "Independence p-val",
-        "Joint CC Outcome",
-        "Basel Zone",
-    ]
-    st.dataframe(b_display[master_cols], use_container_width=True, hide_index=True)
+    rows_str = "".join(rows_html)
+    master_table_html = f'''
+    <div style="overflow-x: auto; width: 100%; border: 1px solid {PALETTE['border']}; border-radius: 6px; margin-bottom: 0.75rem;">
+        <table style="width: 100%; border-collapse: collapse; font-family: Inter, -apple-system, sans-serif; font-size: 0.83rem;">
+            <thead>
+                <tr style="background-color: {PALETTE['light_bg']}; color: {PALETTE['navy']}; font-weight: 700; font-size: 0.74rem; letter-spacing: 0.04em; border-bottom: 2px solid {PALETTE['border']};">
+                    <th style="text-align: left; padding: 0.55rem 0.6rem; white-space: nowrap;">METHOD</th>
+                    <th style="text-align: center; padding: 0.55rem 0.4rem; white-space: nowrap;">CONF.</th>
+                    <th style="text-align: right; padding: 0.55rem 0.4rem; white-space: nowrap;">OBS</th>
+                    <th style="text-align: right; padding: 0.55rem 0.4rem; white-space: nowrap;">BREACHES</th>
+                    <th style="text-align: right; padding: 0.55rem 0.45rem; white-space: nowrap;">RATE</th>
+                    <th style="text-align: right; padding: 0.55rem 0.45rem; white-space: nowrap;">KUPIEC P</th>
+                    <th style="text-align: center; padding: 0.55rem 0.5rem; white-space: nowrap;">KUPIEC POF</th>
+                    <th style="text-align: right; padding: 0.55rem 0.45rem; white-space: nowrap;">IND. P</th>
+                    <th style="text-align: center; padding: 0.55rem 0.5rem; white-space: nowrap;">JOINT CC</th>
+                    <th style="text-align: center; padding: 0.55rem 0.5rem; white-space: nowrap;">BASEL ZONE</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows_str}
+            </tbody>
+        </table>
+    </div>
+    '''
+    clean_master_html = "\n".join(line.lstrip() for line in master_table_html.splitlines() if line.strip())
+    st.markdown(clean_master_html, unsafe_allow_html=True)
     render_download_button(baseline_backtests, "backtest_results_master.csv", "Export Validation Table CSV")
 
     # Critical Honest Disclosure Expander

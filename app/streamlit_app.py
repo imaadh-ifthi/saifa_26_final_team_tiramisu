@@ -40,6 +40,23 @@ def main() -> None:
         render_brand()
         st.caption("Thoughtful allocation. Transparent risk.")
 
+        # Check query params for initial page selection
+        default_nav_idx = 0
+        qp = st.query_params.get("page", "")
+        page_map = {
+            "1": 0, "overview": 0,
+            "2": 1, "portfolio": 1, "allocation": 1,
+            "3": 2, "risk": 2,
+            "4": 3, "validation": 3, "reliability": 3,
+            "5": 4, "stress": 4, "crisis": 4,
+            "6": 5, "assumptions": 5, "evidence": 5,
+        }
+        if qp and qp.lower() in page_map:
+            target_page = PAGES[page_map[qp.lower()]]
+            if st.session_state.get("tm_navigation") != target_page:
+                st.session_state["tm_navigation"] = target_page
+            default_nav_idx = page_map[qp.lower()]
+
         # Primary Navigation
         page = st.radio(
             "Navigation",
@@ -51,18 +68,19 @@ def main() -> None:
                 "5. Stress & Risk Contributions",
                 "6. Assumptions & Data Quality",
             ],
-            index=0,
+            index=default_nav_idx,
             key="tm_navigation",
             format_func=lambda value: PAGE_LABELS[PAGES.index(value)],
             label_visibility="collapsed",
         )
 
-        st.markdown("---")
-
         # Global Portfolio Basis Selector
         # Certain pages strictly require or lock a particular basis
         if page in ("2. Portfolio & Performance", "3. Risk Analysis"):
-            st.markdown("#### Analysis Portfolio Basis")
+            st.markdown(
+                f'<div style="font-size: 0.78rem; font-weight: 700; color: {PALETTE["navy"]}; margin-top: 10px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em;">Analysis Portfolio Basis</div>',
+                unsafe_allow_html=True,
+            )
             basis_choice = st.radio(
                 "Select Portfolio Basis:",
                 options=[
@@ -82,9 +100,6 @@ def main() -> None:
             st.caption("**Locked Basis**: Frozen validation portfolio (OOS evaluation).")
         else:
             selected_basis = PortfolioBasis.CURRENT
-            st.caption("**Locked Basis**: Current proposed allocation (retrospective).")
-
-        st.markdown("---")
 
         # Check for discrepancies between config.yaml and saved metadata
         from app.data_access import check_config_metadata_discrepancies, load_var_forecasts
@@ -175,29 +190,38 @@ def main() -> None:
                     eval_start_date = pd.Timestamp(d_start)
                     eval_end_date = pd.Timestamp(d_end)
 
-        st.markdown("---")
+        st.markdown(
+            f'<div style="margin: 14px 0 10px 0; border-top: 1px solid {PALETTE["border"]};"></div>',
+            unsafe_allow_html=True,
+        )
 
-        st.caption("Appearance: ⋮ → Settings → Theme. Choose Light, Dark, or system preference.")
-
-        # Data Status & Cutoffs Panel
+        # Data Status & Cutoffs Panel with clear date explanation
         try:
             cutoffs = load_data_cutoffs()
-            st.markdown(
-                f"""
-                <div style="font-size: 0.8rem; color: {PALETTE['muted']}; line-height: 1.45;">
-                    <b>Data Cutoff Status</b><br>
-                    • Latest Prices: <b>{cutoffs['latest_price_date'].strftime('%Y-%m-%d')}</b><br>
-                    • Complete Returns: <b>{cutoffs['latest_return_date'].strftime('%Y-%m-%d')}</b><br>
-                    • Evaluated Risk: <b>{cutoffs['latest_risk_date'].strftime('%Y-%m-%d')}</b>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            lp = cutoffs['latest_price_date'].strftime('%Y-%m-%d')
+            lr = cutoffs['latest_return_date'].strftime('%Y-%m-%d')
+            lk = cutoffs['latest_risk_date'].strftime('%Y-%m-%d')
+            with st.expander("Data Status & Freshness", expanded=False):
+                st.markdown(
+                    f"""
+                    <div style="font-size: 0.78rem; color: {PALETTE['muted']}; line-height: 1.55;">
+                        <div>• Prices: <b>{lp}</b> <span style="font-size: 0.72rem;">(raw)</span></div>
+                        <div>• Returns: <b>{lr}</b> <span style="font-size: 0.72rem;">(complete)</span></div>
+                        <div>• Risk Cutoff: <b>{lk}</b> <span style="font-size: 0.72rem;">(eval)</span></div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
         except Exception:
             pass
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Reload Results Cache", help="Clears cached tables and reloads output CSV/JSON files from disk.", key="btn_reload_cache"):
+        st.markdown(
+            f'<div style="font-size: 0.78rem; font-weight: 600; color: {PALETTE["navy"]}; margin-top: 16px; margin-bottom: 3px;">Appearance</div>'
+            '<div style="font-size: 12px; color: #a8a29a; line-height: 1.4; margin-bottom: 12px;">Theme toggle: ⋮ → Settings → Theme</div>',
+            unsafe_allow_html=True,
+        )
+
+        if st.button("Reload Results Cache", help="Clears cached tables and reloads output CSV/JSON files from disk.", key="btn_reload_cache", width="stretch"):
             clear_app_cache()
             st.success("Cache cleared! Reloaded analytical outputs.")
             st.rerun()

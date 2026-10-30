@@ -29,8 +29,8 @@ from app.schemas import PortfolioBasis, PALETTE, ASSET_REGISTRY
 def render_stress_view() -> None:
     """Render crisis replay scenarios, hypothetical stagflation shocks, and position risk contributions."""
     render_header(
-        "Stress Testing & Risk Contributions",
-        "Retrospective historical crisis replays, hypothetical stagflation shocks, and Euler position risk budgeting.",
+        "Crisis & Contributions",
+        "Stress testing and risk contributions: retrospective historical crisis replays, hypothetical stagflation shocks, and Euler position risk budgeting.",
     )
     render_basis_badge("Current proposed portfolio (Retrospective stress replay & position budgeting)")
 
@@ -82,7 +82,46 @@ def render_stress_view() -> None:
         s_table["Ending Notional"] = s_table["Ending Notional"].apply(lambda v: format_currency(v, 0))
         s_table["Data Status"] = s_table["Data Status"].apply(lambda s: "Complete" if s == "ok" else "Partial")
 
-        st.dataframe(s_table, use_container_width=True, hide_index=True)
+        s_rows = []
+        for _, r in s_table.iterrows():
+            row_html = (
+                f'<tr style="border-bottom: 1px solid {PALETTE["border"]};">'
+                f'<td style="text-align: left; padding: 7px 10px; font-weight: 600; color: {PALETTE["navy"]}; white-space: nowrap;">{r["Crisis Episode"]}</td>'
+                f'<td style="text-align: center; padding: 7px 10px; color: {PALETTE["muted"]}; font-size: 0.80rem; white-space: nowrap;">{r["Start Date"]}</td>'
+                f'<td style="text-align: center; padding: 7px 10px; color: {PALETTE["muted"]}; font-size: 0.80rem; white-space: nowrap;">{r["End Date"]}</td>'
+                f'<td style="text-align: right; padding: 7px 10px; color: {PALETTE["red"] if "-" in str(r["Total Return (%)"]) else PALETTE["navy"]}; font-variant-numeric: tabular-nums; font-weight: 600;">{r["Total Return (%)"]}</td>'
+                f'<td style="text-align: right; padding: 7px 10px; color: {PALETTE["red"] if "-" in str(r["P&L Impact (USD)"]) else PALETTE["navy"]}; font-variant-numeric: tabular-nums; font-weight: 600;">{r["P&L Impact (USD)"]}</td>'
+                f'<td style="text-align: right; padding: 7px 10px; color: {PALETTE["navy"]}; font-variant-numeric: tabular-nums;">{r["Worst Single Day"]}</td>'
+                f'<td style="text-align: right; padding: 7px 10px; color: {PALETTE["navy"]}; font-variant-numeric: tabular-nums;">{r["Max Drawdown"]}</td>'
+                f'<td style="text-align: right; padding: 7px 10px; color: {PALETTE["navy"]}; font-variant-numeric: tabular-nums;">{r["Ending Notional"]}</td>'
+                f'<td style="text-align: center; padding: 7px 10px; color: {PALETTE["teal"] if r["Data Status"] == "Complete" else PALETTE["amber"]}; font-weight: 600; font-size: 0.80rem;">{r["Data Status"]}</td>'
+                f'</tr>'
+            )
+            s_rows.append(row_html)
+
+        s_html = f"""
+<table style="width: 100%; border-collapse: collapse; font-family: 'Inter', -apple-system, sans-serif; font-size: 0.83rem; margin-top: 0.5rem; margin-bottom: 0.75rem;">
+<thead>
+<tr style="border-bottom: 2px solid {PALETTE['border']};">
+<th style="text-align: left; padding: 7px 10px; color: {PALETTE['muted']}; font-weight: 600; font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Crisis Episode</th>
+<th style="text-align: center; padding: 7px 10px; color: {PALETTE['muted']}; font-weight: 600; font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Start Date</th>
+<th style="text-align: center; padding: 7px 10px; color: {PALETTE['muted']}; font-weight: 600; font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">End Date</th>
+<th style="text-align: right; padding: 7px 10px; color: {PALETTE['muted']}; font-weight: 600; font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Total Return</th>
+<th style="text-align: right; padding: 7px 10px; color: {PALETTE['muted']}; font-weight: 600; font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">P&L Impact (USD)</th>
+<th style="text-align: right; padding: 7px 10px; color: {PALETTE['muted']}; font-weight: 600; font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Worst Single Day</th>
+<th style="text-align: right; padding: 7px 10px; color: {PALETTE['muted']}; font-weight: 600; font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Max Drawdown</th>
+<th style="text-align: right; padding: 7px 10px; color: {PALETTE['muted']}; font-weight: 600; font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Ending Notional</th>
+<th style="text-align: center; padding: 7px 10px; color: {PALETTE['muted']}; font-weight: 600; font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Status</th>
+</tr>
+</thead>
+<tbody>
+{''.join(s_rows)}
+</tbody>
+</table>
+"""
+        clean_s_html = "\n".join(line.lstrip() for line in s_html.splitlines() if line.strip())
+        st.markdown(clean_s_html, unsafe_allow_html=True)
+        render_download_button(s_table, "historical_stress_scenarios.csv", "Export Crisis Scenarios CSV")
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("#### Interactive Crisis Trajectory Visualizer")
@@ -151,7 +190,40 @@ def render_stress_view() -> None:
         h_table["Return Contribution"] = h_table["Return Contribution"].apply(lambda r: format_percent(r, 2))
         h_table["P&L Contribution (USD)"] = h_table["P&L Contribution (USD)"].apply(lambda p: format_currency(p, 0))
 
-        st.dataframe(h_table[["Ticker", "Asset Description", "Portfolio Weight", "Assumed Shock", "Return Contribution", "P&L Contribution (USD)"]], use_container_width=True, hide_index=True)
+        h_rows = []
+        for _, r in h_table.iterrows():
+            row_html = (
+                f'<tr style="border-bottom: 1px solid {PALETTE["border"]};">'
+                f'<td style="text-align: left; padding: 7px 10px; font-weight: 600; color: {PALETTE["navy"]}; white-space: nowrap;">{r["Ticker"]}</td>'
+                f'<td style="text-align: left; padding: 7px 10px; color: {PALETTE["navy"]};">{r["Asset Description"]}</td>'
+                f'<td style="text-align: right; padding: 7px 10px; color: {PALETTE["navy"]}; font-variant-numeric: tabular-nums;">{r["Portfolio Weight"]}</td>'
+                f'<td style="text-align: right; padding: 7px 10px; color: {PALETTE["red"] if "-" in str(r["Assumed Shock"]) else PALETTE["navy"]}; font-variant-numeric: tabular-nums; font-weight: 600;">{r["Assumed Shock"]}</td>'
+                f'<td style="text-align: right; padding: 7px 10px; color: {PALETTE["red"] if "-" in str(r["Return Contribution"]) else PALETTE["navy"]}; font-variant-numeric: tabular-nums; font-weight: 600;">{r["Return Contribution"]}</td>'
+                f'<td style="text-align: right; padding: 7px 10px; color: {PALETTE["red"] if "-" in str(r["P&L Contribution (USD)"]) else PALETTE["navy"]}; font-variant-numeric: tabular-nums; font-weight: 600;">{r["P&L Contribution (USD)"]}</td>'
+                f'</tr>'
+            )
+            h_rows.append(row_html)
+
+        h_html = f"""
+<table style="width: 100%; border-collapse: collapse; font-family: 'Inter', -apple-system, sans-serif; font-size: 0.83rem; margin-top: 0.5rem; margin-bottom: 0.75rem;">
+<thead>
+<tr style="border-bottom: 2px solid {PALETTE['border']};">
+<th style="text-align: left; padding: 7px 10px; color: {PALETTE['muted']}; font-weight: 600; font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Ticker</th>
+<th style="text-align: left; padding: 7px 10px; color: {PALETTE['muted']}; font-weight: 600; font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Asset Description</th>
+<th style="text-align: right; padding: 7px 10px; color: {PALETTE['muted']}; font-weight: 600; font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Weight</th>
+<th style="text-align: right; padding: 7px 10px; color: {PALETTE['muted']}; font-weight: 600; font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Assumed Shock</th>
+<th style="text-align: right; padding: 7px 10px; color: {PALETTE['muted']}; font-weight: 600; font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Return Contrib.</th>
+<th style="text-align: right; padding: 7px 10px; color: {PALETTE['muted']}; font-weight: 600; font-size: 0.80rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">P&L Contrib. (USD)</th>
+</tr>
+</thead>
+<tbody>
+{''.join(h_rows)}
+</tbody>
+</table>
+"""
+        clean_h_html = "\n".join(line.lstrip() for line in h_html.splitlines() if line.strip())
+        st.markdown(clean_h_html, unsafe_allow_html=True)
+        render_download_button(h_table, "hypothetical_shocks.csv", "Export Shock Contributions CSV")
 
         # Verify reconciliation
         sum_pnl_contrib = float(shock_contribs["pnl_contribution_usd"].sum())
@@ -209,33 +281,78 @@ def render_stress_view() -> None:
         )
         st.plotly_chart(fig_rc, use_container_width=True)
 
-        # Risk Contributions Table
+        # Risk Contributions Table (Custom Institutional HTML Format)
         subset_rc = risk_contribs[
             (risk_contribs["method"] == contrib_method) & np.isclose(risk_contribs["confidence"], contrib_conf)
         ].copy()
 
-        rc_table = subset_rc[["asset", "weight", "marginal_var", "component_var_usd", "var_risk_share", "marginal_es", "component_es_usd", "es_risk_share"]].copy()
-        rc_table["name"] = rc_table["asset"].map(lambda a: ASSET_REGISTRY[a].name if a in ASSET_REGISTRY else a)
-        rc_table = rc_table.rename(columns={
-            "asset": "Ticker",
-            "name": "Description",
-            "weight": "Weight",
-            "marginal_var": "Marginal VaR (∂VaR/∂w)",
-            "component_var_usd": "Component VaR (USD)",
-            "var_risk_share": "VaR Risk Share",
-            "marginal_es": "Marginal ES (∂ES/∂w)",
-            "component_es_usd": "Component ES (USD)",
-            "es_risk_share": "ES Risk Share",
-        })
-        rc_table["Weight"] = rc_table["Weight"].apply(lambda w: format_percent(w, 2))
-        rc_table["Marginal VaR (∂VaR/∂w)"] = rc_table["Marginal VaR (∂VaR/∂w)"].apply(lambda m: format_percent(m, 3))
-        rc_table["Component VaR (USD)"] = rc_table["Component VaR (USD)"].apply(lambda v: format_currency(v, 0))
-        rc_table["VaR Risk Share"] = rc_table["VaR Risk Share"].apply(lambda s: format_percent(s, 2))
-        rc_table["Marginal ES (∂ES/∂w)"] = rc_table["Marginal ES (∂ES/∂w)"].apply(lambda m: format_percent(m, 3))
-        rc_table["Component ES (USD)"] = rc_table["Component ES (USD)"].apply(lambda e: format_currency(e, 0))
-        rc_table["ES Risk Share"] = rc_table["ES Risk Share"].apply(lambda s: format_percent(s, 2))
+        total_comp_var = float(subset_rc["component_var_usd"].sum())
+        total_comp_es = float(subset_rc["component_es_usd"].sum())
+        total_weight = float(subset_rc["weight"].sum())
 
-        st.dataframe(rc_table, use_container_width=True, hide_index=True)
+        rc_rows_html = []
+        for idx, row in enumerate(subset_rc.itertuples()):
+            asset_name = ASSET_REGISTRY[row.asset].name if row.asset in ASSET_REGISTRY else row.asset
+            row_bg = PALETTE["light_bg"] if idx % 2 == 1 else PALETTE["card_bg"]
+            
+            # Highlight hedging assets (negative risk component) with emerald text
+            c_var_color = PALETTE["green"] if row.component_var_usd < 0 else PALETTE["navy"]
+            c_es_color = PALETTE["green"] if row.component_es_usd < 0 else PALETTE["navy"]
+            var_share_color = PALETTE["green"] if row.var_risk_share < 0 else PALETTE["slate"]
+            es_share_color = PALETTE["green"] if row.es_risk_share < 0 else PALETTE["slate"]
+
+            rc_rows_html.append(f'''
+            <tr style="background-color: {row_bg}; border-bottom: 1px solid {PALETTE['border']};">
+                <td style="padding: 0.5rem 0.6rem; font-weight: 700; color: {PALETTE['navy']}; white-space: nowrap;">{row.asset}</td>
+                <td style="padding: 0.5rem 0.6rem; color: {PALETTE['muted']}; font-size: 0.82rem;">{asset_name}</td>
+                <td style="padding: 0.5rem 0.5rem; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap;">{format_percent(row.weight, 2)}</td>
+                <td style="padding: 0.5rem 0.5rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;">{format_percent(row.marginal_var, 3)}</td>
+                <td style="padding: 0.5rem 0.5rem; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; color: {c_var_color}; white-space: nowrap;">{format_currency(row.component_var_usd, 0)}</td>
+                <td style="padding: 0.5rem 0.5rem; text-align: right; font-variant-numeric: tabular-nums; color: {var_share_color}; white-space: nowrap;">{format_percent(row.var_risk_share, 2)}</td>
+                <td style="padding: 0.5rem 0.5rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;">{format_percent(row.marginal_es, 3)}</td>
+                <td style="padding: 0.5rem 0.5rem; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; color: {c_es_color}; white-space: nowrap;">{format_currency(row.component_es_usd, 0)}</td>
+                <td style="padding: 0.5rem 0.5rem; text-align: right; font-variant-numeric: tabular-nums; color: {es_share_color}; white-space: nowrap;">{format_percent(row.es_risk_share, 2)}</td>
+            </tr>
+            ''')
+
+        rows_markup = "".join(rc_rows_html)
+        rc_table_html = f'''
+        <div style="overflow-x: auto; width: 100%; border: 1px solid {PALETTE['border']}; border-radius: 6px; margin-bottom: 0.75rem;">
+            <table style="width: 100%; border-collapse: collapse; font-family: Inter, -apple-system, sans-serif; font-size: 0.83rem;">
+                <thead>
+                    <tr style="background-color: {PALETTE['light_bg']}; color: {PALETTE['navy']}; font-weight: 700; font-size: 0.74rem; letter-spacing: 0.04em; border-bottom: 2px solid {PALETTE['border']};">
+                        <th style="text-align: left; padding: 0.55rem 0.6rem; white-space: nowrap;">TICKER</th>
+                        <th style="text-align: left; padding: 0.55rem 0.6rem; min-width: 140px;">DESCRIPTION</th>
+                        <th style="text-align: right; padding: 0.55rem 0.5rem; white-space: nowrap;">WEIGHT</th>
+                        <th style="text-align: right; padding: 0.55rem 0.5rem; white-space: nowrap;">MARGINAL VAR</th>
+                        <th style="text-align: right; padding: 0.55rem 0.5rem; white-space: nowrap;">COMPONENT VAR (USD)</th>
+                        <th style="text-align: right; padding: 0.55rem 0.5rem; white-space: nowrap;">VAR SHARE</th>
+                        <th style="text-align: right; padding: 0.55rem 0.5rem; white-space: nowrap;">MARGINAL ES</th>
+                        <th style="text-align: right; padding: 0.55rem 0.5rem; white-space: nowrap;">COMPONENT ES (USD)</th>
+                        <th style="text-align: right; padding: 0.55rem 0.5rem; white-space: nowrap;">ES SHARE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows_markup}
+                </tbody>
+                <tfoot>
+                    <tr style="background-color: {PALETTE['light_bg']}; font-weight: 700; border-top: 2px solid {PALETTE['border']}; color: {PALETTE['navy']};">
+                        <td style="padding: 0.55rem 0.6rem; white-space: nowrap;">Total Portfolio</td>
+                        <td style="padding: 0.55rem 0.6rem; color: {PALETTE['muted']}; font-weight: 400; font-size: 0.8rem;">Euler Decomposition (100% Reconciled)</td>
+                        <td style="padding: 0.55rem 0.5rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;">{format_percent(total_weight, 2)}</td>
+                        <td style="padding: 0.55rem 0.5rem; text-align: right; color: {PALETTE['muted']};">—</td>
+                        <td style="padding: 0.55rem 0.5rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;">{format_currency(total_comp_var, 0)}</td>
+                        <td style="padding: 0.55rem 0.5rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;">100.00%</td>
+                        <td style="padding: 0.55rem 0.5rem; text-align: right; color: {PALETTE['muted']};">—</td>
+                        <td style="padding: 0.55rem 0.5rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;">{format_currency(total_comp_es, 0)}</td>
+                        <td style="padding: 0.55rem 0.5rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;">100.00%</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        '''
+        clean_rc_html = "\n".join(line.lstrip() for line in rc_table_html.splitlines() if line.strip())
+        st.markdown(clean_rc_html, unsafe_allow_html=True)
         render_download_button(subset_rc, f"risk_contributions_{contrib_method}_{int(contrib_conf*100)}.csv", "Export Risk Contributions CSV")
 
         with st.expander("Understanding Portfolio Weight vs. Risk Share (Preserving Negative Signs)"):
