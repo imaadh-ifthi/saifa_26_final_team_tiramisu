@@ -70,11 +70,12 @@ def test_1_current_and_validation_portfolio_results_remain_separate():
     assert kpi_curr["observations"] != kpi_val["observations"]
     assert not np.isclose(kpi_curr["annualized_return"], kpi_val["annualized_return"])
 
-    # Risk summary: current has 3 baseline methods, validation has 4 methods (including EVT: evt_gpd)
+    # Current portfolio retains 3 baselines; validation adds EVT and experimental GJR candidates.
     var_curr = load_var_summary(PortfolioBasis.CURRENT)
     var_val = load_var_summary(PortfolioBasis.VALIDATION)
     assert "evt_gpd" not in set(var_curr["method"])
     assert "evt_gpd" in set(var_val["method"])
+    assert "gjr_filtered_historical" in set(var_val["method"])
 
 
 # 2. Dollar allocations reconcile to portfolio value

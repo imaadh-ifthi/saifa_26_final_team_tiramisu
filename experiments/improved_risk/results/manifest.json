@@ -176,6 +176,14 @@
       "empirical_quantile_methods": [
         "inverted_cdf"
       ]
+    },
+    "candidates": [
+      "gjr_filtered_historical",
+      "gjr_filtered_bootstrap"
+    ],
+    "gjr_garch": {
+      "window": 1000,
+      "refit_every": 21
     }
   },
   "training": {
@@ -185,32 +193,35 @@
     "risk_free_quote_date": "2017-12-29",
     "risk_free_annual": 0.0139,
     "target_return_annual": 0.065,
-    "expected_return_annual": 0.06500000000007466,
+    "expected_return_annual": 0.06500000000007479,
     "weights": {
-      "SPY": 0.3208570695600638,
-      "EFA": 1.9836305881713327e-16,
-      "EEM": 0.0,
+      "SPY": 0.3208570695600653,
+      "EFA": 0.0,
+      "EEM": 1.3769367590565906e-16,
       "AGG": 0.3791429304399358,
-      "GLD": 0.15,
-      "XLE": 2.3262139079472995e-16,
-      "XLK": 0.14999999999999997
+      "GLD": 0.14999999999999997,
+      "XLE": 0.0,
+      "XLK": 0.15
     },
     "rebalancing": "daily_constant_weights_no_costs"
   },
   "input_sha256": {
     "outputs/tables/prices.csv": "4f6241e3b689ab7e126d8bce369593fefceba274291616c5ea09fbba79b0918c",
-    "data/raw/risk_free.csv": "55a96f10af1274beea4881313594e2d1a89b1c8f8ff9833d6e18d4ec94d487ce",
+    "data/raw/risk_free.csv": "bbec1b353e158eb8cd2b5b0db9a28d66a63ebb6c6bde890e93c7b5dc7351d589",
     "config.yaml": "debdebeb7790240a6c2c8362bef9924938ef5e48015b5e86cebc6978bda6ed25",
-    "C:\\Daniel\\Projects\\saifa_26_final_team_tiramisu\\experiments\\improved_risk\\config.yaml": "e47b14812503d3a1d87ebcb1daf4eafcbf6dd3e351a1547a25f89c2b19a0a470"
+    "C:\\Competitions\\saifa_26\\saifa_26_final_team_tiramisu\\experiments\\improved_risk\\config.yaml": "5fadafdefe8f7a6ab90d703a42c500276ad446249dc0a44c57f60416e3707bf7"
   },
   "implementation_sha256": {
-    "models.py": "2faaad44504cd06a751df2b1d2867ca97b47b7d93500917de264b686163081c9",
-    "run.py": "e14784246fc37dbcd10fe79fcf554e5589f41a56ab2337c1a6a7098277d66732"
+    "models.py": "f034a95a7f96ea8f61066216f70c7f16e703922ca4596e13d34c43827a488c87",
+    "run.py": "27bb5ffb652ba74bc5e4637e42b021c9385e1c1072be130ef862cfb5ed52c8ce",
+    "candidate_models/gjr_filtered_historical.py": "bceccaf0e811e84e81980a7719f064b1f7941ca5a9b949fccc447e4760448b09",
+    "candidate_models/gjr_filtered_bootstrap.py": "e475b8f2eda8a6b7957c93b82fb9af9bbf3a779b6db2921877a124aa49c8e7d0",
+    "src/quantedge/garch.py": "0cd396742c8f7f78096ed9ad1960cb5e06559069d098e01366854e5e404ebd38"
   },
   "dependency_versions": {
-    "numpy": "2.4.6",
-    "pandas": "3.0.6",
-    "scipy": "1.17.1",
+    "numpy": "2.5.4",
+    "pandas": "3.1.0",
+    "scipy": "1.18.1",
     "pyyaml": "6.0.3"
   },
   "data_cutoff": "2026-10-20",

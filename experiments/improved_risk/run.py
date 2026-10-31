@@ -123,7 +123,13 @@ def main() -> None:
                 "base_configuration": base, "experiment_configuration": experiment, "training": training,
                 "input_sha256": {str(path): _hash(Path(path)) for path in
                                   (args.prices, args.risk_free, args.base_config, args.experiment_config)},
-                "implementation_sha256": {name: _hash(PACKAGE/name) for name in ("models.py", "run.py")},
+                "implementation_sha256": {
+                    **{name: _hash(PACKAGE/name) for name in ("models.py", "run.py")},
+                    **{f"candidate_models/{name}": _hash(PACKAGE/"candidate_models"/name)
+                       for name in ("gjr_filtered_historical.py", "gjr_filtered_bootstrap.py")
+                       if (PACKAGE/"candidate_models"/name).is_file()},
+                    "src/quantedge/garch.py": _hash(Path("src/quantedge/garch.py")),
+                },
                 "dependency_versions": {name: version(name) for name in ("numpy", "pandas", "scipy", "pyyaml")},
                 "data_cutoff": str(returns.index.max().date()),
                 "selection_policy": "fixed_candidates_no_search_no_automatic_promotion"}

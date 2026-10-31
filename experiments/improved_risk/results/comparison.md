@@ -12,6 +12,8 @@ No candidate is automatically promoted and no parameter search is performed.
 | filtered_bootstrap | candidate | 29 / 2212 | 0.16057 | 0.0056767 | 0.008152 | 0.000253043 |
 | filtered_evt | candidate | 31 / 2212 | 0.073577 | 0.0085879 | 0.0063839 | 0.000249895 |
 | filtered_historical | candidate | 29 / 2212 | 0.16057 | 0.0056767 | 0.008152 | 0.000251399 |
+| gjr_filtered_bootstrap | candidate | 26 / 2212 | 0.41982 | 0.31262 | 0.43379 | 0.000231086 |
+| gjr_filtered_historical | candidate | 26 / 2212 | 0.41982 | 0.31262 | 0.43379 | 0.000229593 |
 | historical | baseline | 38 / 2212 | 0.002078 | 0.0036935 | 0.00012922 | 0.000315761 |
 | historical_quantile_inverted_cdf | sensitivity | 32 / 2212 | 0.047803 | 0.00090864 | 0.0005751 | 0.000311162 |
 | historical_window_1000 | sensitivity | 33 / 2212 | 0.030236 | 0.001173 | 0.00049346 | 0.000311093 |

@@ -264,6 +264,13 @@ def load_var_summary(basis: PortfolioBasis = PortfolioBasis.CURRENT) -> pd.DataF
 
     df = pd.read_csv(path, parse_dates=["latest_date"])
     df["confidence"] = df["confidence"].astype(float)
+    if basis == PortfolioBasis.VALIDATION:
+        experiment_path = resolve_path("experiments/improved_risk/results/risk_summary.csv")
+        if experiment_path.is_file():
+            candidates = pd.read_csv(experiment_path, parse_dates=["latest_date"])
+            candidates = candidates[candidates["method"].isin(
+                ["gjr_filtered_historical", "gjr_filtered_bootstrap"])]
+            df = pd.concat([df, candidates[df.columns]], ignore_index=True)
     return df
 
 
@@ -283,6 +290,17 @@ def load_var_forecasts(basis: PortfolioBasis = PortfolioBasis.CURRENT) -> pd.Dat
     df["confidence"] = df["confidence"].astype(float)
     df["exception"] = df["exception"].apply(parse_boolean)
     df["log_es_finite"] = df["log_es_finite"].apply(parse_boolean)
+    if basis == PortfolioBasis.VALIDATION:
+        experiment_path = resolve_path("experiments/improved_risk/results/forecasts.csv.gz")
+        if experiment_path.is_file():
+            candidates = pd.read_csv(experiment_path, parse_dates=["date", "estimation_end"])
+            candidates = candidates[candidates["method"].isin(
+                ["gjr_filtered_historical", "gjr_filtered_bootstrap"])]
+            candidates = candidates[[column for column in df.columns if column in candidates.columns]]
+            candidates["confidence"] = candidates["confidence"].astype(float)
+            candidates["exception"] = candidates["exception"].apply(parse_boolean)
+            candidates["log_es_finite"] = candidates["log_es_finite"].apply(parse_boolean)
+            df = pd.concat([df, candidates], ignore_index=True, sort=False)
     return df
 
 
@@ -297,6 +315,15 @@ def load_backtest_results() -> pd.DataFrame:
     df["kupiec_reject"] = df["kupiec_reject"].apply(parse_boolean)
     df["independence_reject"] = df["independence_reject"].apply(parse_boolean)
     df["conditional_coverage_reject"] = df["conditional_coverage_reject"].apply(parse_boolean)
+    experiment_path = resolve_path("experiments/improved_risk/results/backtests.csv")
+    if experiment_path.is_file():
+        candidates = pd.read_csv(experiment_path, parse_dates=["start_date", "end_date"])
+        candidates = candidates[candidates["method"].isin(
+            ["gjr_filtered_historical", "gjr_filtered_bootstrap"])]
+        candidates = candidates[[column for column in df.columns if column in candidates.columns]]
+        for column in ("kupiec_reject", "independence_reject", "conditional_coverage_reject"):
+            candidates[column] = candidates[column].apply(parse_boolean)
+        df = pd.concat([df, candidates], ignore_index=True, sort=False)
     return df
 
 

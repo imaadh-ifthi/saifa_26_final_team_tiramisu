@@ -31,6 +31,8 @@ METHOD_LABELS: dict[str, str] = {
     "parametric_ewma": "EWMA Parametric (Normal)",
     "monte_carlo_bootstrap": "Bootstrap Monte Carlo",
     "evt_gpd": "Extreme Value Theory (EVT-GPD)",
+    "gjr_filtered_historical": "GJR-GARCH Filtered Historical",
+    "gjr_filtered_bootstrap": "GJR-GARCH Filtered Bootstrap",
     "historical_simple": "Historical Tail (Simple Returns)",
     "parametric_normal_simple": "Parametric Normal (Simple Returns)",
 }
@@ -52,6 +54,14 @@ METHOD_DESCRIPTIONS: dict[str, str] = {
         "Generalized Pareto Distribution fitted to positive tail loss exceedances above an empirically selected threshold "
         "(1,000-day window, refit every 21 days). Models heavy fat tails beyond empirical sample bounds."
     ),
+    "gjr_filtered_historical": (
+        "Historical simulation of standardized residuals from a causal Student-t GJR-GARCH(1,1) filter. "
+        "Reported on the frozen validation portfolio; experimental and not promoted to the baseline suite."
+    ),
+    "gjr_filtered_bootstrap": (
+        "Seeded bootstrap of standardized residuals from a causal Student-t GJR-GARCH(1,1) filter. "
+        "Reported on the frozen validation portfolio; experimental and not promoted to the baseline suite."
+    ),
     "historical_simple": (
         "Euler component risk using trailing empirical asset returns at the portfolio loss quantile."
     ),
@@ -59,6 +69,17 @@ METHOD_DESCRIPTIONS: dict[str, str] = {
         "Euler component risk using analytical normal gradients with sample covariance."
     ),
 }
+
+
+def default_method_for_selection(available_methods: list[str], confidence: float, page: str) -> str:
+    """Choose GJR at 99% when available, preserving the validation-page default otherwise."""
+    if not available_methods:
+        raise ValueError("At least one risk method must be available")
+    if confidence == 0.99 and "gjr_filtered_historical" in available_methods:
+        return "gjr_filtered_historical"
+    if page == "4. Model Validation" and "parametric_ewma" in available_methods:
+        return "parametric_ewma"
+    return available_methods[0]
 
 CONFIDENCE_LEVELS = [0.90, 0.95, 0.99]
 DEFAULT_NOTIONAL = 10_000_000.0

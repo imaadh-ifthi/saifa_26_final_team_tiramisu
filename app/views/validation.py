@@ -208,7 +208,7 @@ def render_validation_view(
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Full Backtesting Results Across All Methods and Confidences Table
-    st.subheader(f"Baseline Model Calibration Master Table (Full Unfiltered Sample: {format_date(full_min_date)} to {format_date(full_max_date)})")
+    st.subheader(f"Model Calibration Master Table (Full Unfiltered Sample: {format_date(full_min_date)} to {format_date(full_max_date)})")
     if is_filtered_window:
         st.caption("**Table Scope Notice**: This master table reports baseline results over the complete 2,212-day out-of-sample horizon. The metric cards above reflect your custom filtered date window.")
 

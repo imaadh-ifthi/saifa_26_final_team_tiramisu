@@ -90,7 +90,7 @@ The application enforces strict separation between:
 | **Holding Horizon** | 2007-01-04 to 2026-10-20 (4,980 days) | 2018-01-02 to 2026-10-20 (2,212 days) |
 | **Analysis Type** | Retrospective historical replay | Out-of-sample forward evaluation |
 | **Risk-Free Rate** | Fixed quote (4.22% DGS3MO) | As-of daily historical series (avg 2.74%) |
-| **Available VaR Models** | Historical, EWMA Normal, Bootstrap | Historical, EWMA Normal, Bootstrap, EVT-GPD |
+| **Available VaR Models** | Historical, EWMA Normal, Bootstrap | Historical, EWMA Normal, Bootstrap, EVT-GPD, experimental GJR filtered historical/bootstrap |
 | **Pages Where Used** | Overview, Portfolio, Risk, Stress, Assumptions | Portfolio, Risk, Validation, Assumptions |
 
 ---
@@ -99,7 +99,7 @@ The application enforces strict separation between:
 
 - **Portfolio Basis**: Selects between Current proposed portfolio and Frozen validation portfolio on pages supporting both. Locked automatically on Validation and Stress pages.
 - **Confidence Level**: Controls 1-day VaR/ES confidence (90%, 95%, 99%). Filters corresponding forecast rows without affecting portfolio weights.
-- **Risk Methodology**: Selects model (Historical, EWMA Normal, Bootstrap, EVT). Filtered dynamically based on available models in the active dataset.
+- **Risk Methodology**: Selects model (Historical, EWMA Normal, Bootstrap, EVT, and experimental GJR-filtered models on the frozen validation basis). At 99% confidence, GJR filtered historical is the default whenever available; other confidence levels preserve the existing page default.
 - **OOS Evaluation Window**: On the Model Validation page, allows setting custom start and end dates. Submitting the form recomputes Kupiec POF, Christoffersen independence, and Basel traffic lights via backend functions.
 - **Reload Results**: Clears Streamlit `@st.cache_data` and reloads CSV/JSON artifacts from disk.
 
@@ -129,11 +129,11 @@ app/
 
 ## 6. Testing Suite & Verification
 
-The test suite contains **87 passing automated tests** across analytical backend layers, application data access, scenario validation, and Streamlit `AppTest`:
+The test suite covers analytical backend layers, application data access, scenario validation, and Streamlit `AppTest`:
 
 - `tests/test_analytical_layers.py` (22 tests): Backend ES quadrature, Kupiec POF, Christoffersen independence, Basel traffic light, GPD limits, and full pipeline export consistency.
-- `tests/test_app_data_access.py` (10 tests): Explicit boolean parsing, currency/percent formatting, weight loading, KPI loading, drawdown preservation, data cutoffs, and dynamic backtesting.
-- `tests/test_app_integration.py` (4 tests): Verification that all 15 analytical outputs load cleanly, Plotly figures generate without exceptions, hypothetical stress contributions reconcile, and cache clearing works.
+- `tests/test_app_data_access.py`: Explicit boolean parsing, currency/percent formatting, weight loading, KPI loading, drawdown preservation, data cutoffs, dynamic backtesting, and confidence-based GJR default selection.
+- `tests/test_app_integration.py`: Verification that analytical outputs, including experimental GJR forecasts and backtests, load cleanly; Plotly figures generate; hypothetical stress contributions reconcile; and cache clearing works.
 - `tests/test_app_scenarios.py` (20 tests): Systematic verification of all 20 specific checklist requirements in Section 13 (two-portfolio separation, dollar allocation reconciliation, defensive AGG+GLD definition, benchmark labels, unavailable handling, schema validation, date derivation, window handling, unavailable independence treatment, sequence gap rejection, numerical backtest parity, traffic light rules, breach markers, trace naming, negative risk contributions, collapsed frontiers, and reload mechanics).
 - `tests/test_app_views_apptest.py` (7 tests): Native Streamlit `AppTest` testing that all 6 views render without exception, portfolio basis switches execute cleanly, and sidebar reload button functions properly.
 - `tests/test_crisis_response.py` & `tests/test_layers345_upgrade.py` (24 tests): GJR-GARCH, Garman-Klass, DCC, mixture quantiles, Du-Escanciano, and FZ0 scoring.

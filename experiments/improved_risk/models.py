@@ -1,4 +1,4 @@
-"""Causal EWMA-filtered historical, bootstrap, Student-t and POT/GPD models."""
+"""Causal EWMA-filtered and GJR-GARCH-filtered historical, bootstrap, Student-t and POT/GPD models."""
 from functools import lru_cache
 import numpy as np
 import pandas as pd
@@ -6,6 +6,8 @@ from scipy.optimize import minimize_scalar
 from scipy.stats import t
 from src.quantedge.evt import fit_thresholds, select_threshold, gpd_risk
 from src.quantedge.tail import empirical_risk
+from .candidate_models.gjr_filtered_historical import GJRGARCHFilteredHistorical
+from .candidate_models.gjr_filtered_bootstrap import GJRGARCHFilteredBootstrap
 
 
 def causal_volatility(returns: pd.Series, decay: float = .94, min_periods: int = 60,
@@ -93,12 +95,49 @@ def build_improved_forecasts(returns: pd.Series, base_config: dict, experiment: 
     quantile_methods = experiment.get("sensitivity", {}).get("empirical_quantile_methods", [])
     base_window = int(base_config["var"]["historical_window"])
     confidences = base_config["var"]["confidence_levels"]
+
+    declared_candidates = set(experiment.get("candidates", []))
+    supported_candidates = {"gjr_filtered_historical", "gjr_filtered_bootstrap"}
+    unknown_candidates = declared_candidates - supported_candidates
+    if unknown_candidates:
+        raise ValueError(f"Unknown experiment candidates: {sorted(unknown_candidates)}")
+
+    gjr_cfg = experiment.get("gjr_garch")
+    include_gjr_hist = "gjr_filtered_historical" in declared_candidates
+    include_gjr_boot = "gjr_filtered_bootstrap" in declared_candidates
+    include_gjr = include_gjr_hist or include_gjr_boot
+    if include_gjr and gjr_cfg is None:
+        raise ValueError("Declare gjr_garch settings when a GJR-GARCH candidate is enabled")
+
+    gjr_hist_model = None
+    gjr_boot_model = None
+    gjr_window = 0
+    if include_gjr:
+        gjr_window = int(gjr_cfg.get("window", 1000))
+        gjr_refit = int(gjr_cfg.get("refit_every", 21))
+        if gjr_refit < 1 or gjr_window < 250:
+            raise ValueError("Invalid GJR-GARCH window or refit interval")
+        if include_gjr_hist:
+            gjr_hist_model = GJRGARCHFilteredHistorical(window=gjr_window, refit_every=gjr_refit)
+        if include_gjr_boot:
+            gjr_boot_model = GJRGARCHFilteredBootstrap(
+                window=gjr_window,
+                refit_every=gjr_refit,
+                n_simulations=n_sims,
+                seed=int(base_config["project"]["seed"]),
+            )
+
     if (min(hwindow, twindow, ewindow) < 20 or n_sims < 100
             or int(tcfg["refit_every"]) < 1 or int(ecfg["refit_every"]) < 1
             or any(w < 20 for w in raw_windows) or not confidences
             or any(not .5 < c < 1 for c in confidences)):
         raise ValueError("Invalid experiment windows, simulations, refit intervals or confidences")
-    first = max(f["min_periods"]+max(hwindow, twindow, ewindow), base_window, *raw_windows)
+
+    required_warmup = [f["min_periods"]+max(hwindow, twindow, ewindow), base_window, *raw_windows]
+    if include_gjr:
+        required_warmup.append(gjr_window)
+    first = max(required_warmup)
+
     rows, diagnostics = [], []
     next_t, next_evt = 0, 0
     df, chosen = None, None
@@ -134,25 +173,57 @@ def build_improved_forecasts(returns: pd.Series, base_config: dict, experiment: 
         trailing = standardized.iloc[i-hwindow:i].to_numpy()*vol
         rng = np.random.default_rng(base_config["project"]["seed"]+i)
         simulated = rng.choice(trailing, size=n_sims, replace=True)
+
+        # GJR-GARCH candidates if included
+        gjr_hist_estimates = None
+        gjr_boot_estimates = None
+        if gjr_hist_model is not None:
+            gjr_hist_estimates, gjr_diag = gjr_hist_model.fit_and_forecast(returns, i, confidences)
+            if gjr_diag is not None:
+                diagnostics.append({**gjr_diag, "candidate": "gjr_filtered_historical"})
+        if gjr_boot_model is not None:
+            gjr_boot_estimates, gjr_diag = gjr_boot_model.fit_and_forecast(
+                returns, i, confidences, seed_offset=i)
+            if gjr_diag is not None:
+                diagnostics.append({**gjr_diag, "candidate": "gjr_filtered_bootstrap"})
+
         for c in confidences:
             estimates = {
-                "filtered_historical": (empirical_risk(trailing, c), "ok", returns.index[i-1]),
-                "filtered_bootstrap": (empirical_risk(simulated, c), "ok", returns.index[i-1]),
-                "ewma_student_t": (student_risk(vol, df, c), t_status, t_end),
-                "filtered_evt": (filtered_gpd_risk(chosen, vol, c), evt_status, evt_end),
+                "filtered_historical": (empirical_risk(trailing, c), "ok", returns.index[i-1], vol),
+                "filtered_bootstrap": (empirical_risk(simulated, c), "ok", returns.index[i-1], vol),
+                "ewma_student_t": (student_risk(vol, df, c), t_status, t_end, vol),
+                "filtered_evt": (filtered_gpd_risk(chosen, vol, c), evt_status, evt_end, vol),
             }
+            if gjr_hist_estimates is not None:
+                estimates["gjr_filtered_historical"] = (
+                    {k: gjr_hist_estimates[c][k] for k in ("var_log", "es_log", "var_simple_pct", "es_simple_pct")},
+                    gjr_hist_estimates[c]["status"],
+                    gjr_hist_estimates[c]["tail_fit_end"],
+                    gjr_hist_estimates[c]["forecast_volatility"],
+                )
+            if gjr_boot_estimates is not None:
+                estimates["gjr_filtered_bootstrap"] = (
+                    {k: gjr_boot_estimates[c][k] for k in ("var_log", "es_log", "var_simple_pct", "es_simple_pct")},
+                    gjr_boot_estimates[c]["status"],
+                    gjr_boot_estimates[c]["tail_fit_end"],
+                    gjr_boot_estimates[c]["forecast_volatility"],
+                )
             for window in raw_windows:
                 estimates[f"historical_window_{window}"] = (
-                    empirical_risk(returns.iloc[i-window:i].to_numpy(), c), "sensitivity", returns.index[i-1])
+                    empirical_risk(returns.iloc[i-window:i].to_numpy(), c), "sensitivity", returns.index[i-1], vol)
             for method in quantile_methods:
                 estimates[f"historical_quantile_{method}"] = (
                     empirical_variant(returns.iloc[i-base_window:i].to_numpy(), c, method),
-                    "sensitivity", returns.index[i-1])
-            for method, (risk, status, shape_end) in estimates.items():
+                    "sensitivity", returns.index[i-1], vol)
+            for method, (risk, status, shape_end, m_vol) in estimates.items():
                 rows.append({"date": date, "method": method, "confidence": c, **risk,
-                             "status": status, "forecast_volatility": vol,
+                             "status": status, "forecast_volatility": m_vol,
                              "estimation_end": returns.index[i-1], "tail_fit_end": shape_end,
-                             "student_df": df if method == "ewma_student_t" else np.nan,
+                             "student_df": df if method == "ewma_student_t" else (
+                                 (gjr_hist_model.current_params["nu"] if gjr_hist_model else
+                                  gjr_boot_model.current_params["nu"] if gjr_boot_model else np.nan)
+                                 if method in ("gjr_filtered_historical", "gjr_filtered_bootstrap") else np.nan
+                             ),
                              "threshold_quantile": chosen.threshold_quantile if method == "filtered_evt" else np.nan,
                              "evaluation_index": i, "actual_log_return": returns.iloc[i]})
     result = pd.DataFrame(rows)

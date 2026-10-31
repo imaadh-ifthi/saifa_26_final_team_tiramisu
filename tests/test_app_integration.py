@@ -62,10 +62,19 @@ def test_all_output_tables_load_successfully():
     assert len(var_sum_curr) == 9  # 3 methods x 3 confidences
 
     var_sum_val = load_var_summary(PortfolioBasis.VALIDATION)
-    assert len(var_sum_val) == 12  # 4 methods x 3 confidences (including EVT)
+    assert len(var_sum_val) == 18  # 4 baseline + 2 experimental GJR methods x 3 confidences
+    assert "gjr_filtered_historical" in set(var_sum_val["method"])
+
+    forecasts_val = load_var_forecasts(PortfolioBasis.VALIDATION)
+    gjr_forecasts = forecasts_val[forecasts_val["method"] == "gjr_filtered_historical"]
+    assert len(gjr_forecasts) == 2212 * 3
+    assert gjr_forecasts["exception"].dtype == bool
+    assert "gjr_filtered_historical" not in set(
+        load_var_forecasts(PortfolioBasis.CURRENT)["method"])
 
     backtests = load_backtest_results()
-    assert len(backtests) == 12
+    assert len(backtests) == 18
+    assert "gjr_filtered_historical" in set(backtests["method"])
 
     stress_sum = load_stress_summary()
     assert len(stress_sum) == 4

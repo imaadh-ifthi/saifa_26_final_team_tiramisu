@@ -10,7 +10,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from app.schemas import PortfolioBasis, CONFIDENCE_LEVELS, METHOD_LABELS, PALETTE
+from app.schemas import (PortfolioBasis, CONFIDENCE_LEVELS, METHOD_LABELS, PALETTE,
+                         default_method_for_selection)
 from app.data_access import (
     load_data_cutoffs,
     clear_app_cache,
@@ -137,9 +138,8 @@ def main() -> None:
                 available_methods = ["historical", "parametric_ewma", "monte_carlo_bootstrap"]
 
             method_names = {m: METHOD_LABELS.get(m, m) for m in available_methods}
-            default_idx = 0
-            if "parametric_ewma" in available_methods and page == "4. Model Validation":
-                default_idx = available_methods.index("parametric_ewma")
+            default_method = default_method_for_selection(available_methods, selected_confidence, page)
+            default_idx = available_methods.index(default_method)
 
             selected_method = st.selectbox(
                 "Primary Risk Methodology:",
@@ -147,7 +147,7 @@ def main() -> None:
                 index=default_idx,
                 format_func=lambda m: method_names.get(m, m),
                 help="Select forecasting model. Changing methodology filters risk estimates; it does not alter portfolio weights.",
-                key="global_method_selector",
+                key=f"global_method_selector_{selected_basis.value}_{int(round(selected_confidence * 100))}",
             )
         else:
             selected_confidence = 0.95

@@ -21,3 +21,9 @@ evt:
 sensitivity:
   raw_historical_windows: [500, 1000]
   empirical_quantile_methods: [inverted_cdf]
+candidates:
+  - gjr_filtered_historical
+  - gjr_filtered_bootstrap
+gjr_garch:
+  window: 1000
+  refit_every: 21

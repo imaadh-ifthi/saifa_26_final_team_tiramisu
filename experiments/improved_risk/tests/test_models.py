@@ -33,6 +33,9 @@ def settings():
     config["evt"] = base["evt"].copy()
     config["sensitivity"] = {"raw_historical_windows": [60, 100],
                               "empirical_quantile_methods": ["inverted_cdf"]}
+    # Keep these fast protocol tests focused on the legacy candidate inventory;
+    # the GJR candidates have dedicated causal and stationarity tests.
+    config["candidates"] = []
     returns = pd.Series(np.random.default_rng(31).standard_t(6, 240)*.008, index=dates)
     return returns, base, config
 
@@ -104,6 +107,7 @@ def test_all_candidates_are_invariant_to_today_and_future_returns():
     assert (before.tail_fit_end < before.date).all()
     assert (diag.estimation_end < diag.fit_date).all()
     assert (before.es_simple_pct+1e-12 >= before.var_simple_pct).all()
+    assert before.exception.dtype == bool
     assert before.groupby(["method", "confidence"]).size().nunique() == 1
     repeat, _ = build_improved_forecasts(returns, base, config, start)
     pd.testing.assert_frame_equal(before, repeat)

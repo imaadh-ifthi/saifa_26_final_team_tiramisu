@@ -10,7 +10,8 @@ from app.formatting import (
     format_number,
     format_date,
 )
-from app.schemas import PortfolioBasis, ASSET_REGISTRY, DEFAULT_NOTIONAL
+from app.schemas import (PortfolioBasis, ASSET_REGISTRY, DEFAULT_NOTIONAL,
+                         default_method_for_selection)
 from app.data_access import (
     load_portfolio_weights,
     load_kpi_summary,
@@ -37,6 +38,14 @@ def test_boolean_parsing():
     assert parse_boolean("0") is False
     assert parse_boolean(None) is False
     assert parse_boolean(np.nan) is False
+
+
+def test_99_percent_defaults_to_gjr_when_available():
+    methods = ["historical", "parametric_ewma", "gjr_filtered_historical"]
+    assert default_method_for_selection(methods, 0.99, "3. Risk Analysis") == "gjr_filtered_historical"
+    assert default_method_for_selection(methods, 0.95, "3. Risk Analysis") == "historical"
+    assert default_method_for_selection(methods, 0.99, "4. Model Validation") == "gjr_filtered_historical"
+    assert default_method_for_selection(methods[:2], 0.99, "4. Model Validation") == "parametric_ewma"
 
 
 def test_currency_and_percent_formatting():
