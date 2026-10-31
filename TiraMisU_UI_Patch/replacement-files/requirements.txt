@@ -1,0 +1,12 @@
+pandas
+numpy
+scipy
+statsmodels
+yfinance
+requests
+matplotlib
+plotly
+pytest
+pyyaml
+pyarrow
+streamlit>=1.66.1,<2

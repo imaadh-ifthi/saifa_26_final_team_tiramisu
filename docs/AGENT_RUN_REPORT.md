@@ -29,3 +29,22 @@ Refresh public data before relying on outputs; inspect flagged outliers, infeasi
 ## Subsequent risk-model development (2026-10-28)
 
 This run report describes the original analytical pipeline. Later experiments remain separate under [`experiments/improved_risk/`](../experiments/improved_risk/README.md). With 2007-start training and 2018–2026 evaluation, the unchanged baseline methods still fail joint 99% conditional coverage. Filtered historical + alert and filtered bootstrap + alert each record 22 exceptions; filtered EVT + alert records 25. All three are not rejected by the recorded 99% Kupiec, independence and joint tests on this already-inspected development period. They share one prior-close CUSUM alert and have not replaced the four baseline exports. The [experiment results review](../experiments/improved_risk/RESULTS_REVIEW.md) and [breach plots](../experiments/improved_risk/results/alert_breach_comparison/README.md) give exact scores, dates, forecast-size impact and limitations. The current repository test suite passes 42 tests; this does not independently validate risk forecasts.
+
+## Streamlit Application Implementation (2026-10-28)
+
+- **Agent:** Rashad / Antigravity IDE
+- **Branch:** `rash`
+- **Request:** Build, complete, and verify the functional Streamlit application for the Serendib Endowment investment proposal according to all 15 specification sections.
+- **Work Completed:**
+  - Designed, implemented, and verified complete application across 6 modular views: `app/views/overview.py`, `portfolio.py`, `risk.py`, `validation.py`, `stress.py`, and `assumptions.py`.
+  - Implemented centralized data access and strict data contract adapter (`app/data_access.py`), institutional formatting utilities (`app/formatting.py`), domain schemas (`app/schemas.py`), interactive Plotly charts (`app/charts.py`), and reusable UI components (`app/components.py`).
+  - Enforced strict two-portfolio separation between the Current Proposed Portfolio (retrospective replay) and the Frozen Validation Portfolio (2018-2026 OOS).
+  - Defined defensive exposure as AGG + GLD per backend mandate; implemented comprehensive mandate compliance checks.
+  - Critical fix in `recompute_backtest_window`: removed zero-substitution for missing independence test; unavailable tests correctly remain NaN with clear explanation.
+  - Implemented comprehensive test coverage across `tests/test_app_data_access.py`, `tests/test_app_integration.py`, `tests/test_app_scenarios.py` (all 20 checklist scenarios), and `tests/test_app_views_apptest.py` (Streamlit `AppTest` multi-page navigation). **All 87 tests pass**.
+  - Launched Streamlit server locally and performed visual browser verification across all 6 views with browser subagent recording `app_verification_1793209219308.webp`. Confirmed zero runtime exceptions, clean institutional styling, honest collapsed frontier presentation, and fully working controls.
+  - Documented application architecture and test inventory in `docs/STREAMLIT_APP.md` and updated `README.md` and `docs/LIVING_PROJECT_NOTES.md`.
+
+
+## TiraMisU presentation patch — 2026-10-29
+Native light/dark presentation, branding, overview shortcuts, accessible theme tokens and theme tests added. See TIRAMISU_UI_PATCH.md for scope and verification limits.

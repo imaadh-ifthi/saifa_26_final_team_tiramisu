@@ -1,0 +1,312 @@
+"""Formal Model Validation and Statistical Backtesting view."""
+from __future__ import annotations
+import streamlit as st
+import pandas as pd
+import numpy as np
+
+from app.components import (
+    render_header,
+    render_basis_badge,
+    render_callout,
+    render_traffic_light_badge,
+    render_download_button,
+)
+from app.data_access import (
+    load_backtest_results,
+    load_var_forecasts,
+    load_analytical_run,
+    recompute_backtest_window,
+)
+from app.charts import plot_validation_breaches
+from app.formatting import format_currency, format_percent, format_date, format_number, format_p_value
+from app.schemas import PortfolioBasis, PALETTE, METHOD_LABELS
+
+
+def render_validation_view(
+    selected_confidence: float = 0.99,
+    selected_method: str = "parametric_ewma",
+    eval_start_date: pd.Timestamp | str | None = None,
+    eval_end_date: pd.Timestamp | str | None = None,
+) -> None:
+    """Render formal model validation, likelihood-ratio tests, and Basel traffic light."""
+    render_header(
+        "Model Reliability",
+        "Formal out-of-sample Model Validation: statistical calibration tests and regulatory exception monitoring.",
+    )
+
+    # Strictly locked to Frozen validation allocation
+    render_basis_badge("Frozen validation portfolio (Out-of-sample evaluation: 2018–2026)")
+
+    analytical_meta = load_analytical_run()
+    train_start = analytical_meta.get("training_start", "2007-01-04")
+    train_end = analytical_meta.get("training_end", "2017-12-29")
+    oos_weights = analytical_meta.get("weights", {})
+
+    st.markdown(
+        f"""
+        <div style="background-color: {PALETTE['light_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.88rem;">
+            <b>Frozen Training Protocol</b>: Portfolio weights were optimized strictly on <b>{train_start} to {train_end}</b> 
+            (SPY {format_percent(oos_weights.get('SPY', 0.321), 1)}, AGG {format_percent(oos_weights.get('AGG', 0.379), 1)}, 
+            GLD {format_percent(oos_weights.get('GLD', 0.15), 1)}, XLK {format_percent(oos_weights.get('XLK', 0.15), 1)}). 
+            Risk models are evaluated strictly out-of-sample beginning January 2018 with zero parameter leakage.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    forecasts_df = load_var_forecasts(PortfolioBasis.VALIDATION)
+    baseline_backtests = load_backtest_results()
+
+    # Determine evaluation window
+    full_min_date = forecasts_df["date"].min()
+    full_max_date = forecasts_df["date"].max()
+
+    curr_start = pd.Timestamp(eval_start_date) if eval_start_date else full_min_date
+    curr_end = pd.Timestamp(eval_end_date) if eval_end_date else full_max_date
+
+    is_filtered_window = (curr_start > full_min_date) or (curr_end < full_max_date)
+
+    # Recompute statistics dynamically for the chosen window using backend test functions
+    test_results = recompute_backtest_window(
+        forecasts_df=forecasts_df,
+        start_date=curr_start,
+        end_date=curr_end,
+        method=selected_method,
+        confidence=selected_confidence,
+        significance=0.05,
+    )
+
+    if "error" in test_results:
+        st.error(test_results["error"])
+        return
+
+    n_obs = test_results["observations"]
+    actual_exceptions = test_results["exceptions"]
+    observed_rate = test_results["exception_rate"]
+    expected_rate = test_results["expected_exception_rate"]
+    expected_exceptions = n_obs * expected_rate
+
+    kupiec_p = test_results["kupiec_p_value"]
+    kupiec_reject = test_results["kupiec_reject"]
+    indep_p = test_results["independence_p_value"]
+    indep_reject = test_results["independence_reject"]
+    indep_status = test_results.get("independence_status", "ok")
+    cc_p = test_results.get("conditional_coverage_p_value", np.nan)
+    cc_reject = test_results.get("conditional_coverage_reject", None)
+
+    traffic_status = test_results["traffic_light"]
+    traffic_obs = test_results["traffic_light_observations"]
+    traffic_exceptions = test_results["traffic_light_exceptions"]
+
+    # Regulatory & Statistical Summary Banner
+    st.subheader(f"Evaluation Window Summary: {format_date(curr_start)} to {format_date(curr_end)}")
+    if is_filtered_window:
+        render_callout(
+            f"**Filtered Date Window Active**: Displayed statistics are dynamically recomputed from {n_obs:,} forecast observations. "
+            "Model parameters are fixed; only the evaluation sample is filtered.",
+            level="info",
+        )
+
+    # Core Visual: Realized Losses vs VaR Threshold (Positive Loss Convention)
+    fig_breach = plot_validation_breaches(
+        forecasts_df[
+            (forecasts_df["date"] >= curr_start) & (forecasts_df["date"] <= curr_end)
+        ],
+        selected_method,
+        selected_confidence,
+    )
+    st.plotly_chart(fig_breach, use_container_width=True)
+
+    # Basel Traffic Light Indicator
+    st.subheader("Basel Regulatory Traffic Light (99% Confidence / Trailing 250 Days)")
+    render_traffic_light_badge(traffic_status, traffic_exceptions, traffic_obs)
+
+    if np.isclose(selected_confidence, 0.99):
+        st.caption(
+            f"Traffic light window covers the last {traffic_obs} evaluated trading days within the selected sample. "
+            f"Zone thresholds: Green (0–4 exceptions), Yellow (5–9 exceptions), Red (10+ exceptions)."
+        )
+    else:
+        st.info("The Basel traffic light framework is strictly defined for 99% confidence over 250 days; it is not applicable at 90% or 95% confidence.")
+
+    st.markdown("---")
+
+    # Detailed Statistical Backtest Cards
+    st.subheader("Formal Likelihood-Ratio Hypothesis Tests (5% Significance Level)")
+    s1, s2, s3, s4, s5 = st.columns(5)
+    with s1:
+        st.metric(
+            label="Actual Exceptions",
+            value=f"{actual_exceptions:,}",
+            delta=f"{actual_exceptions - expected_exceptions:+.1f} vs Exp ({expected_exceptions:.1f})",
+            delta_color="inverse",
+            help="Number of days where realized portfolio loss exceeded forecast VaR.",
+        )
+    with s2:
+        st.metric(
+            label="Exception Rate",
+            value=format_percent(observed_rate, 2),
+            delta=f"{format_percent(observed_rate - expected_rate, 2, include_sign=True)} vs Exp ({format_percent(expected_rate, 2)})",
+            delta_color="inverse",
+            help="Realized breach proportion (exceptions / total observations).",
+        )
+    with s3:
+        kupiec_status = "REJECTS at 5%" if kupiec_reject else "Does not reject at 5%"
+        kupiec_color = PALETTE["red"] if kupiec_reject else PALETTE["green"]
+        st.markdown(
+            f"""
+            <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center; min-height: 118px; display: flex; flex-direction: column; justify-content: center;">
+                <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Kupiec POF (Coverage)</div>
+                <div style="font-size: 1.05rem; font-weight: 700; color: {kupiec_color}; margin: 0.25rem 0;">{kupiec_status}</div>
+                <div style="font-size: 0.78rem; color: {PALETTE['muted']};">LR = {test_results['kupiec_lr']:.2f} | p = {format_p_value(kupiec_p)}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with s4:
+        if indep_status != "ok" or not np.isfinite(indep_p):
+            indep_text = "UNAVAILABLE"
+            indep_color = PALETTE["muted"]
+            indep_sub = "Insufficient transitions"
+        else:
+            indep_text = "REJECTS at 5%" if indep_reject else "Does not reject at 5%"
+            indep_color = PALETTE["red"] if indep_reject else PALETTE["green"]
+            indep_sub = f"LR = {test_results['independence_lr']:.2f} | p = {format_p_value(indep_p)}"
+        st.markdown(
+            f"""
+            <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center; min-height: 118px; display: flex; flex-direction: column; justify-content: center;">
+                <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Christoffersen Independence</div>
+                <div style="font-size: 1.05rem; font-weight: 700; color: {indep_color}; margin: 0.25rem 0;">{indep_text}</div>
+                <div style="font-size: 0.78rem; color: {PALETTE['muted']};">{indep_sub}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with s5:
+        if cc_reject is None or not np.isfinite(cc_p):
+            cc_text = "UNAVAILABLE"
+            cc_color = PALETTE["muted"]
+            cc_sub = "Independence required"
+        else:
+            cc_text = "REJECTS at 5%" if cc_reject else "Does not reject at 5%"
+            cc_color = PALETTE["red"] if cc_reject else PALETTE["green"]
+            cc_sub = f"LR = {test_results['conditional_coverage_lr']:.2f} | p = {format_p_value(cc_p)}"
+        st.markdown(
+            f"""
+            <div style="background-color: {PALETTE['card_bg']}; border: 1px solid {PALETTE['border']}; border-radius: 6px; padding: 0.6rem; text-align: center; min-height: 118px; display: flex; flex-direction: column; justify-content: center;">
+                <div style="font-size: 0.8rem; color: {PALETTE['muted']};">Joint Conditional Coverage</div>
+                <div style="font-size: 1.05rem; font-weight: 700; color: {cc_color}; margin: 0.25rem 0;">{cc_text}</div>
+                <div style="font-size: 0.78rem; color: {PALETTE['muted']};">{cc_sub}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    if indep_status != "ok":
+        render_callout(f"**Statistical Note**: {test_results.get('independence_explanation')}", level="warning")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Full Backtesting Results Across All Methods and Confidences Table
+    st.subheader(f"Baseline Model Calibration Master Table (Full Unfiltered Sample: {format_date(full_min_date)} to {format_date(full_max_date)})")
+    if is_filtered_window:
+        st.caption("**Table Scope Notice**: This master table reports baseline results over the complete 2,212-day out-of-sample horizon. The metric cards above reflect your custom filtered date window.")
+
+    # Institutional Custom HTML Master Calibration Table
+    rows_html = []
+    for idx, row in enumerate(baseline_backtests.itertuples()):
+        is_active = (row.method == selected_method and np.isclose(row.confidence, selected_confidence))
+        m_label = METHOD_LABELS.get(row.method, row.method)
+        active_pill = f'<span style="background-color: {PALETTE["teal"]}; color: #ffffff; font-size: 0.68rem; font-weight: 700; padding: 0.12rem 0.35rem; border-radius: 3px; margin-left: 0.4rem; vertical-align: middle;">★ Active</span>' if is_active else ""
+        
+        row_bg = PALETTE["teal_light"] if is_active else (PALETTE["light_bg"] if idx % 2 == 1 else PALETTE["card_bg"])
+        font_weight = "600" if is_active else "400"
+        border_left = f"border-left: 3px solid {PALETTE['teal']};" if is_active else "border-left: 3px solid transparent;"
+        
+        # Kupiec Outcome Pill
+        if row.kupiec_reject:
+            kupiec_pill = f'<span style="background-color: {PALETTE['red_light']}; color: {PALETTE['red']}; border: 1px solid rgba(179, 58, 58, 0.25); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; font-size: 0.74rem; white-space: nowrap;">✗ Reject (5%)</span>'
+        else:
+            kupiec_pill = f'<span style="background-color: {PALETTE['green_light']}; color: {PALETTE['green']}; border: 1px solid rgba(8, 120, 109, 0.25); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; font-size: 0.74rem; white-space: nowrap;">✓ Pass (5%)</span>'
+            
+        # Joint CC Pill
+        if row.conditional_coverage_reject is True:
+            cc_pill = f'<span style="background-color: {PALETTE['red_light']}; color: {PALETTE['red']}; border: 1px solid rgba(179, 58, 58, 0.25); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; font-size: 0.74rem; white-space: nowrap;">✗ Reject (5%)</span>'
+        elif row.conditional_coverage_reject is False:
+            cc_pill = f'<span style="background-color: {PALETTE['green_light']}; color: {PALETTE['green']}; border: 1px solid rgba(8, 120, 109, 0.25); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; font-size: 0.74rem; white-space: nowrap;">✓ Pass (5%)</span>'
+        else:
+            cc_pill = f'<span style="color: {PALETTE['muted']}; font-size: 0.75rem;">Unavailable</span>'
+            
+        # Basel Zone Badge
+        t_light = str(row.traffic_light).lower()
+        if t_light == "green":
+            basel_pill = f'<span style="background-color: {PALETTE['green_light']}; color: {PALETTE['green']}; border: 1px solid rgba(8, 120, 109, 0.25); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; font-size: 0.74rem; white-space: nowrap;">● Green Zone</span>'
+        elif t_light in ("yellow", "amber"):
+            basel_pill = f'<span style="background-color: {PALETTE['amber_light']}; color: {PALETTE['amber']}; border: 1px solid rgba(217, 119, 6, 0.25); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; font-size: 0.74rem; white-space: nowrap;">● Yellow Zone</span>'
+        elif t_light == "red":
+            basel_pill = f'<span style="background-color: {PALETTE['red_light']}; color: {PALETTE['red']}; border: 1px solid rgba(179, 58, 58, 0.25); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; font-size: 0.74rem; white-space: nowrap;">● Red Zone</span>'
+        else:
+            basel_pill = f'<span style="color: {PALETTE['muted']}; font-size: 0.75rem;">N/A (99% Only)</span>'
+            
+        ind_p_val = format_p_value(row.independence_p_value) if np.isfinite(row.independence_p_value) else "—"
+        
+        rows_html.append(f'''
+        <tr style="background-color: {row_bg}; font-weight: {font_weight}; border-bottom: 1px solid {PALETTE['border']}; {border_left}">
+            <td style="padding: 0.5rem 0.6rem; text-align: left; white-space: nowrap;">{m_label}{active_pill}</td>
+            <td style="padding: 0.5rem 0.4rem; text-align: center; white-space: nowrap;">{int(row.confidence * 100)}%</td>
+            <td style="padding: 0.5rem 0.4rem; text-align: right; white-space: nowrap;">{int(row.observations):,}</td>
+            <td style="padding: 0.5rem 0.4rem; text-align: right; white-space: nowrap;">{int(row.exceptions):,}</td>
+            <td style="padding: 0.5rem 0.45rem; text-align: right; white-space: nowrap;">{format_percent(row.exception_rate, 2)}</td>
+            <td style="padding: 0.5rem 0.45rem; text-align: right; white-space: nowrap;">{format_p_value(row.kupiec_p_value)}</td>
+            <td style="padding: 0.5rem 0.5rem; text-align: center; white-space: nowrap;">{kupiec_pill}</td>
+            <td style="padding: 0.5rem 0.45rem; text-align: right; white-space: nowrap;">{ind_p_val}</td>
+            <td style="padding: 0.5rem 0.5rem; text-align: center; white-space: nowrap;">{cc_pill}</td>
+            <td style="padding: 0.5rem 0.5rem; text-align: center; white-space: nowrap;">{basel_pill}</td>
+        </tr>
+        ''')
+
+    rows_str = "".join(rows_html)
+    master_table_html = f'''
+    <div style="overflow-x: auto; width: 100%; border: 1px solid {PALETTE['border']}; border-radius: 6px; margin-bottom: 0.75rem;">
+        <table style="width: 100%; border-collapse: collapse; font-family: Inter, -apple-system, sans-serif; font-size: 0.83rem;">
+            <thead>
+                <tr style="background-color: {PALETTE['light_bg']}; color: {PALETTE['navy']}; font-weight: 700; font-size: 0.74rem; letter-spacing: 0.04em; border-bottom: 2px solid {PALETTE['border']};">
+                    <th style="text-align: left; padding: 0.55rem 0.6rem; white-space: nowrap;">METHOD</th>
+                    <th style="text-align: center; padding: 0.55rem 0.4rem; white-space: nowrap;">CONF.</th>
+                    <th style="text-align: right; padding: 0.55rem 0.4rem; white-space: nowrap;">OBS</th>
+                    <th style="text-align: right; padding: 0.55rem 0.4rem; white-space: nowrap;">BREACHES</th>
+                    <th style="text-align: right; padding: 0.55rem 0.45rem; white-space: nowrap;">RATE</th>
+                    <th style="text-align: right; padding: 0.55rem 0.45rem; white-space: nowrap;">KUPIEC P</th>
+                    <th style="text-align: center; padding: 0.55rem 0.5rem; white-space: nowrap;">KUPIEC POF</th>
+                    <th style="text-align: right; padding: 0.55rem 0.45rem; white-space: nowrap;">IND. P</th>
+                    <th style="text-align: center; padding: 0.55rem 0.5rem; white-space: nowrap;">JOINT CC</th>
+                    <th style="text-align: center; padding: 0.55rem 0.5rem; white-space: nowrap;">BASEL ZONE</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows_str}
+            </tbody>
+        </table>
+    </div>
+    '''
+    clean_master_html = "\n".join(line.lstrip() for line in master_table_html.splitlines() if line.strip())
+    st.markdown(clean_master_html, unsafe_allow_html=True)
+    render_download_button(baseline_backtests, "backtest_results_master.csv", "Export Validation Table CSV")
+
+    # Critical Honest Disclosure Expander
+    st.markdown("---")
+    with st.expander("Governance Insight: Reconciling Green Traffic Lights with Statistical Rejections"):
+        st.markdown(
+            f"""
+            <div style="font-size: 0.92rem; color: {PALETTE['navy']}; line-height: 1.55;">
+                <p><b>Why does the Basel Traffic Light show 'GREEN' while formal tests REJECT at 99%?</b></p>
+                <ul>
+                    <li><b>Different Time Horizons</b>: The legacy Basel Traffic Light evaluates <i>only the most recent 250 trading days</i> (late 2025 to late 2026). During this recent period of lower equity volatility, only 1–4 breaches occurred across models, putting all models into the regulatory Green Zone.</li>
+                    <li><b>Multi-Year Volatility Clusters</b>: Over the full 2,212 out-of-sample days (which include the massive market turbulence of the COVID-19 crash in March 2020 and the 2022 interest rate shock), exceptions clustered heavily. Excess breach frequency and breach clustering are distinct statistical failures.</li>
+                    <li><b>Statistical Calibration Failure</b>: Over 2,212 days at 99% confidence, we expect ~22 exceptions. Historical had 38, Monte Carlo 32, EVT 31, and EWMA Normal had 48. Because these breaches occurred in tight clusters rather than independently spaced occurrences, the joint conditional coverage test <b>rejects all four baseline models at 99%</b>.</li>
+                    <li><b>Takeaway for the Investment Committee</b>: A recent green traffic light does <i>not</i> mean the risk model is mathematically proven or immune to tail risk. The endowment must maintain substantial defensive reserves and supplement daily VaR with stress testing.</li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
