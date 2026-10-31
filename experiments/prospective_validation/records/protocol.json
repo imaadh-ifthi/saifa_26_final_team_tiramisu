@@ -1,0 +1,56 @@
+{
+  "confidence_levels": [
+    0.9,
+    0.95,
+    0.99
+  ],
+  "created_utc": "2026-10-28T07:33:43.446018+00:00",
+  "detector_threshold": 2.0,
+  "evaluation_start": "2018-01-01",
+  "methods": [
+    "historical",
+    "parametric_ewma",
+    "monte_carlo_bootstrap",
+    "evt_gpd",
+    "filtered_historical",
+    "filtered_bootstrap",
+    "filtered_evt",
+    "filtered_historical_alert",
+    "filtered_bootstrap_alert",
+    "filtered_evt_cusum"
+  ],
+  "model_sha256": {
+    "config.yaml": "debdebeb7790240a6c2c8362bef9924938ef5e48015b5e86cebc6978bda6ed25",
+    "experiments/improved_risk/config.yaml": "e47b14812503d3a1d87ebcb1daf4eafcbf6dd3e351a1547a25f89c2b19a0a470",
+    "experiments/improved_risk/evt_response.py": "9b22a2f73782aba58a4b0a30d536823e1ed53526114530131167c02bb4f5df33",
+    "experiments/improved_risk/evt_response.yaml": "3c4176f5a3227417d13b4f182b52a3d087fc33eb10b65ade3b384f937a13de62",
+    "experiments/improved_risk/models.py": "2faaad44504cd06a751df2b1d2867ca97b47b7d93500917de264b686163081c9",
+    "experiments/prospective_validation/run.py": "66fd2b63aab2db1fd2bcce5e1dc0d20ed3baf4e020d3190de44079e9472b5d11",
+    "src/quantedge/analytics.py": "5e9b0ef3b810a8cb1ee4beab0177624f3a0d13d2e5a7d88f075c0d8f35ac294b",
+    "src/quantedge/backtesting.py": "b031545d85306ff093f720f0cf1d03960ca7840bde1ea87f81c7bd1db2192abb",
+    "src/quantedge/cleaning.py": "6c71847647835c9c31ce67a2383c0dc5d4d96cbd18f1863f7643efa8d21d35c5",
+    "src/quantedge/config.py": "05ab0e623dab5ce2e84414ab3d552ca0f114b7478a52551b6ed3e5bcd0ba3776",
+    "src/quantedge/evt.py": "02661178f2cbc2452b25d1028e8e878c6902160fb52ab21971f6cc64e57895af",
+    "src/quantedge/risk.py": "547b7216c865a8f53bc130e226a3f2d65e40d95cf0466afcfedc366ca5625612",
+    "src/quantedge/tail.py": "b6edbaad75b0e6cbf25999b651ca68e627ced741cbdf934e13d4b2cffac1a801"
+  },
+  "portfolio_value_usd": 10000000.0,
+  "protocol_id": "84d9449f861d8be6",
+  "purpose": "prospective_same_frozen_portfolio_daily_constant_weights_no_costs",
+  "starting_price_cutoff": "2026-10-20",
+  "starting_price_sha256": "4f6241e3b689ab7e126d8bce369593fefceba274291616c5ea09fbba79b0918c",
+  "study_manifest_sha256": "8178c0b096f0b05f77ec9006d42e86229392117f96a6981e3aca407cb999217a",
+  "training_end": "2017-12-31",
+  "training_start": "2007-01-01",
+  "training_trigger_count": 26,
+  "training_volatility_days": 2708,
+  "weights": {
+    "AGG": 0.3791429304399358,
+    "EEM": 0.0,
+    "EFA": 1.9836305881713327e-16,
+    "GLD": 0.15,
+    "SPY": 0.3208570695600638,
+    "XLE": 2.3262139079472995e-16,
+    "XLK": 0.14999999999999997
+  }
+}

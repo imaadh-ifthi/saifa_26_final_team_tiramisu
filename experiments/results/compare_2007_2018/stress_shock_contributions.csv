@@ -1,0 +1,8 @@
+scenario,asset,weight,shock,return_contribution,pnl_contribution_usd
+Stagflation and equity selloff,SPY,0.39353673286433216,-0.25,-0.09838418321608304,-983841.8321608304
+Stagflation and equity selloff,EFA,0.0,-0.28,-0.0,-0.0
+Stagflation and equity selloff,EEM,0.0,-0.35,-0.0,-0.0
+Stagflation and equity selloff,AGG,0.3064632671356679,-0.12,-0.03677559205628015,-367755.9205628015
+Stagflation and equity selloff,GLD,0.15,0.08,0.012,120000.0
+Stagflation and equity selloff,XLE,1.0473461240936167e-17,-0.15,-1.571019186140425e-18,-1.5710191861404248e-11
+Stagflation and equity selloff,XLK,0.15000000000000002,-0.35,-0.052500000000000005,-525000.0

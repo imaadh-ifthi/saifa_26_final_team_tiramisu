@@ -1,0 +1,5 @@
+scenario,type,requested_start,requested_end,rebalance,allocation_basis,status,actual_start,actual_end,observations,cumulative_return,pnl_usd,max_drawdown,worst_day_return,ending_value_usd,description
+GFC 2008,historical_replay,2008-01-01,2009-03-09,daily,current_allocation_retrospective_replay,ok,2008-01-02,2009-03-09,298.0,-0.28318874353384826,-2831887.4353384827,-0.302533874352211,-0.050059095096496066,7168112.564661518,
+COVID crash,historical_replay,2020-02-19,2020-03-23,daily,current_allocation_retrospective_replay,ok,2020-02-19,2020-03-23,24.0,-0.19272093183721573,-1927209.3183721572,-0.19828324759320226,-0.07053820498274233,8072790.681627843,
+2022 rate shock,historical_replay,2022-01-01,2022-12-30,daily,current_allocation_retrospective_replay,ok,2022-01-03,2022-12-30,251.0,-0.149601703444614,-1496017.0344461398,-0.2029898565070788,-0.030575691337042136,8503982.96555386,
+Stagflation and equity selloff,hypothetical_one_period,,,,,assumed_shocks,,,,-0.1756597752723632,-1756597.7527236321,,,8243402.247276368,"Assumed simultaneous one-period shocks; a sensitivity scenario, not a forecast."

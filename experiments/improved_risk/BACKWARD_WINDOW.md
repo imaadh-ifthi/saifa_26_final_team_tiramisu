@@ -1,0 +1,9 @@
+# Backward-window training comparison
+
+Run `python -m experiments.improved_risk.backward_window` from the repository root. Results go to `experiments/improved_risk/results/backward_window/` and do not alter the existing model or forward-test outputs.
+
+The experiment fits the portfolio allocation from 2007–2012, then holds those weights fixed. It fits each risk model once on either 2007–2012 or 2021–2026 and scores both arms on the same 2013–2020 portfolio returns. The second arm **intentionally uses future information**. It is a backward retrospective comparison, not a valid historical simulation of forecasts available in 2013–2020. Both periods have already been inspected during development, so neither arm is a fresh holdout.
+
+Historical and bootstrap shocks, and raw/filtered EVT tail parameters, stay fixed at the fitted training window. EWMA volatility and the CUSUM alert can update from earlier days within the scored period. For the future-trained arm, its initial volatility and alert calibration come from 2021–2026 before the artificial 2013–2020 sequence begins. This design tests sensitivity to the chosen fit window; it is **not the same rolling-refit procedure** used by the existing 2018–2026 development results. Compare both arms only on the identical middle dates.
+
+`comparison.md` summarizes 99% results. `daily_forecasts.csv.gz` records every model forecast and outcome; `backtests.csv` includes 90%, 95%, and 99% Kupiec, Christoffersen independence, joint coverage, and the Basel 99% traffic light; `scores.csv` includes quantile loss and average VaR/ES. `manifest.json` records the dates, weights, data hashes, fit status, and training-calibrated alert thresholds. A p-value above 0.05 means a test did not reject its null; it does not establish that the model is correct. ES has no separate backtest here.

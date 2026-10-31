@@ -1,0 +1,76 @@
+{
+  "experiment": "retrospective_backward_window_v1",
+  "warning": "2021-2026 training uses future information relative to 2013-2020 scoring; neither arm is an untouched holdout",
+  "portfolio": {
+    "training_start": "2007-01-04",
+    "training_end": "2012-12-31",
+    "training_observations": 1509,
+    "risk_free_quote_date": "2012-12-31",
+    "risk_free_annual": 0.0005,
+    "target_return_annual": 0.065,
+    "expected_return_annual": 0.06500000000000002,
+    "weights": {
+      "SPY": 0.1960001524651687,
+      "EFA": 0.0,
+      "EEM": 0.10000000000000003,
+      "AGG": 0.3039998475348313,
+      "GLD": 0.14999999999999994,
+      "XLE": 0.1000000000000001,
+      "XLK": 0.14999999999999997
+    },
+    "rebalancing": "daily_constant_weights_no_costs"
+  },
+  "windows": [
+    {
+      "training_window": "early_2007_2012",
+      "training_start": "2007-01-04",
+      "training_end": "2012-12-31",
+      "training_days": 1509,
+      "test_start": "2013-01-02",
+      "test_end": "2020-12-31",
+      "test_days": 2015,
+      "detector_threshold": 2.0,
+      "training_triggers": 17,
+      "training_volatility_days": 1449,
+      "raw_evt_status": "stable_adjacent_thresholds",
+      "filtered_evt_status": "stable_adjacent_thresholds",
+      "alert_active_test_days": 127
+    },
+    {
+      "training_window": "future_2021_2026",
+      "training_start": "2021-01-04",
+      "training_end": "2026-10-20",
+      "training_days": 1456,
+      "test_start": "2013-01-02",
+      "test_end": "2020-12-31",
+      "test_days": 2015,
+      "detector_threshold": 1.75,
+      "training_triggers": 16,
+      "training_volatility_days": 1396,
+      "raw_evt_status": "stable_adjacent_thresholds",
+      "filtered_evt_status": "stable_adjacent_thresholds",
+      "alert_active_test_days": 139
+    }
+  ],
+  "tail_fit_policy": "fit_once_per_training_block; update_only_volatility_and_alert_state_with_prior_test_returns",
+  "price_sha256": "4f6241e3b689ab7e126d8bce369593fefceba274291616c5ea09fbba79b0918c",
+  "rates_sha256": "55a96f10af1274beea4881313594e2d1a89b1c8f8ff9833d6e18d4ec94d487ce",
+  "script_sha256": "7366f53de6a14a7048be4064b0ba3f82f7497706f68e76de477b3799243b4bf6",
+  "confidence_levels": [
+    0.9,
+    0.95,
+    0.99
+  ],
+  "methods": [
+    "historical",
+    "parametric_ewma",
+    "monte_carlo_bootstrap",
+    "evt_gpd",
+    "filtered_historical",
+    "filtered_bootstrap",
+    "filtered_evt",
+    "filtered_historical_alert",
+    "filtered_bootstrap_alert",
+    "filtered_evt_cusum"
+  ]
+}

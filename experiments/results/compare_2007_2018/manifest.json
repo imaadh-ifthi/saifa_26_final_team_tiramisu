@@ -1,0 +1,57 @@
+{
+  "train_start": "2007-01-01",
+  "train_end": "2018-12-31",
+  "test_start": "2019-01-02",
+  "test_end": "2026-10-20",
+  "test_days": 1961,
+  "weights": {
+    "SPY": 0.39353673286433216,
+    "EFA": 0.0,
+    "EEM": 0.0,
+    "AGG": 0.3064632671356679,
+    "GLD": 0.15,
+    "XLE": 1.0473461240936167e-17,
+    "XLK": 0.15000000000000002
+  },
+  "candidate_specs": [
+    {
+      "name": "gjrx_vix_evt_d1000",
+      "filter": "gjrx_vix",
+      "window": 1000,
+      "refit_every": 1
+    },
+    {
+      "name": "gjrx_range_evt_m1000",
+      "filter": "gjrx_range",
+      "window": 1000,
+      "refit_every": 21
+    },
+    {
+      "name": "ms_gjr_t_m1000",
+      "filter": "ms_gjr",
+      "window": 1000,
+      "refit_every": 21
+    }
+  ],
+  "confidence_levels": [
+    0.9,
+    0.95,
+    0.975,
+    0.99
+  ],
+  "cusum": {
+    "threshold": 2.0,
+    "training_triggers": 34,
+    "training_volatility_days": 2959,
+    "active_test_days": 115
+  },
+  "selection_warning": "2019-2026 previously inspected; CUSUM especially selected on overlapping outcomes",
+  "source_sha256": {
+    "config.yaml": "debdebeb7790240a6c2c8362bef9924938ef5e48015b5e86cebc6978bda6ed25",
+    "outputs\\tables\\prices.csv": "4f6241e3b689ab7e126d8bce369593fefceba274291616c5ea09fbba79b0918c",
+    "data\\raw\\risk_free.csv": "55a96f10af1274beea4881313594e2d1a89b1c8f8ff9833d6e18d4ec94d487ce",
+    "data\\raw\\vixcls_fred.csv": "84c127d24e29a31383ae1909eec9efe5c028660da4efd05d5fe332bf3f8ab963",
+    "data\\raw\\vix_yahoo.csv": "aa04e2fe835129e3eaa834aa6aa17a96a6afc1ad5ea33fc96e39f54f6e110c5f",
+    "data\\raw\\ohlc.csv": "3a2c48fe4f03107a7e57735e932472a5d5711b5a306be89d42904ea27c4acf97"
+  }
+}
